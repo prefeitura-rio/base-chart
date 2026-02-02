@@ -1,0 +1,439 @@
+# Valores padrão para o base-chart.
+# Este é um arquivo formatado em YAML.
+# Declare variáveis para serem passadas para os templates.
+
+# Define a quantidade de réplicas do deployment
+# Mais informações: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+# Configuração da imagem do container
+# Mais informações: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  # Repositório da imagem Docker (ex: nginx, myapp, registry.com/myapp)
+  repository: nginx
+
+  # Política de pull da imagem
+  # IfNotPresent: baixa apenas se não existir localmente (padrão)
+  # Always: sempre baixa a imagem mais recente
+  # Never: nunca baixa, usa apenas imagem local
+  pullPolicy: IfNotPresent
+
+  # Tag da imagem (sobrescreve o appVersion do Chart.yaml se definido)
+  # Deixe vazio para usar o appVersion do Chart.yaml
+  tag: ""
+
+# Secrets para autenticação em repositórios privados de imagens
+# Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets:
+  # Nome do secret que contém as credenciais do registry
+  - name: ghcr-credentials
+
+# Sobrescrita do nome do chart (afeta labels e seletores)
+nameOverride: ""
+
+# Sobrescrita completa do nome (afeta nomes de recursos)
+fullnameOverride: ""
+
+# Anotações adicionais para os pods
+# Mais informações: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+podAnnotations: {}
+# Exemplo:
+# podAnnotations:
+#   prometheus.io/scrape: "true"
+#   prometheus.io/port: "8080"
+
+# Labels adicionais para os pods
+# Mais informações: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
+# Exemplo:
+# podLabels:
+#   environment: production
+#   team: backend
+
+# Contexto de segurança para o pod inteiro
+podSecurityContext: {}
+# Exemplo:
+# podSecurityContext:
+#   fsGroup: 2000
+#   runAsNonRoot: true
+#   seccompProfile:
+#     type: RuntimeDefault
+
+# Contexto de segurança para o container específico
+securityContext: {}
+# Exemplo:
+# securityContext:
+#   allowPrivilegeEscalation: false
+#   capabilities:
+#     drop:
+#     - ALL
+#   readOnlyRootFilesystem: true
+#   runAsNonRoot: true
+#   runAsUser: 1000
+
+# Configuração do Service do Kubernetes
+# Mais informações: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  # Tipo de service
+  # ClusterIP: apenas interno ao cluster (padrão)
+  # NodePort: expõe em uma porta específica de cada nó
+  # LoadBalancer: cria um load balancer externo (requer provedor de cloud)
+  type: ClusterIP
+
+  # Porta na qual o service será exposto
+  port: 80
+
+# Limites e requests de recursos para o container
+# É recomendado definir estes valores para ambientes de produção
+resources: {}
+# Exemplo para aplicação pequena:
+# resources:
+#   limits:
+#     cpu: 500m      # 0.5 CPU cores
+#     memory: 512Mi   # 512 MiB de RAM
+#   requests:
+#     cpu: 250m      # 0.25 CPU cores garantidos
+#     memory: 256Mi   # 256 MiB de RAM garantidos
+
+# Probe de liveness - verifica se o container está funcionando
+# Se falhar, o Kubernetes reinicia o container
+# Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+livenessProbe:
+  httpGet:
+    path: / # Caminho para verificar (pode ser /health, /alive, etc.)
+    port: http # Porta definida no container
+
+# Probe de readiness - verifica se o container está pronto para receber tráfego
+# Se falhar, remove o pod do service (não mata o container)
+readinessProbe:
+  httpGet:
+    path: / # Caminho para verificar (pode ser /ready, /healthz, etc.)
+    port: http # Porta definida no container
+
+# Configuração opcional de timing para os health probes
+healthProbes:
+  # Tempo de espera antes de iniciar os probes (segundos)
+  # initialDelaySeconds: 30
+
+  # Intervalo entre execuções dos probes (segundos)
+  # periodSeconds: 10
+
+# Horizontal Pod Autoscaler - escalonamento automático baseado em CPU/memória
+# Mais informações: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+autoscaling:
+  # Habilita o HPA (desabilitado por padrão - use KEDA para funcionalidade avançada)
+  enabled: false
+
+  # Número mínimo de réplicas
+  minReplicas: 1
+
+  # Número máximo de réplicas
+  maxReplicas: 100
+
+  # Porcentagem de uso de CPU para trigger do autoscaling
+  targetCPUUtilizationPercentage: 80
+
+  # Porcentagem de uso de memória para trigger (opcional)
+  # targetMemoryUtilizationPercentage: 80
+
+# Volumes adicionais para serem montados no deployment
+volumes: []
+# Exemplo:
+# volumes:
+# - name: config-volume
+#   configMap:
+#     name: my-config
+# - name: secret-volume
+#   secret:
+#     secretName: my-secret
+#     optional: false
+
+# Pontos de montagem para os volumes no container
+volumeMounts: []
+# Exemplo:
+# volumeMounts:
+# - name: config-volume
+#   mountPath: "/etc/config"
+#   readOnly: true
+# - name: secret-volume
+#   mountPath: "/etc/secrets"
+#   readOnly: true
+
+# Variáveis de ambiente vindas de Secrets ou ConfigMaps
+# Mais informações: https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
+envFrom: []
+# Exemplo:
+# envFrom:
+# - secretRef:
+#     name: database-credentials    # Todas as chaves do secret viram env vars
+# - configMapRef:
+#     name: app-config             # Todas as chaves do configmap viram env vars
+
+# Configuração completa do Istio para service mesh
+# Mais informações: https://istio.io/latest/docs/
+istio:
+  # Habilita todas as funcionalidades do Istio (habilitado por padrão)
+  # Quando true: cria VirtualService e DestinationRule automaticamente
+  # Quando false: nenhum recurso Istio é criado
+  enabled: true
+
+  # Configuração do sidecar proxy do Istio
+  sidecar:
+    # Reescrever probes HTTP da aplicação para funcionar com mTLS
+    rewriteAppHTTPProbers: false
+
+    # CPU reservada para o proxy Istio (formato Kubernetes)
+    proxyCPU: "100m"
+
+    # Limite máximo de CPU para o proxy Istio
+    proxyCPULimit: "1000m"
+
+    # Memória reservada para o proxy Istio
+    proxyMemory: "1Gi"
+
+    # Limite máximo de memória para o proxy Istio
+    proxyMemoryLimit: "1536Mi"
+
+  # Configuração do VirtualService - roteamento de tráfego L7
+  virtualService:
+    # Habilita criação do VirtualService (habilitado por padrão quando Istio enabled=true)
+    enabled: true
+
+    # Gateways aos quais este VirtualService se aplica
+    gateways: []
+    # Exemplo:
+    # gateways:
+    # - istio-system/my-gateway
+    # - mesh  # Para tráfego interno do mesh
+
+    # Hosts (domínios) aos quais as regras se aplicam
+    hosts: []
+    # Exemplo:
+    # hosts:
+    # - api.example.com
+    # - internal-service.mesh.local
+
+    # Regras HTTP customizadas (configuração avançada)
+    http: []
+    # Exemplo:
+    # http:
+    # - match:
+    #   - uri:
+    #       prefix: /v1/api
+    #   route:
+    #   - destination:
+    #       host: my-service-v1
+    #   fault:
+    #     delay:
+    #       percentage:
+    #         value: 0.1
+    #       fixedDelay: 5s
+
+    # Roteamento baseado em caminho - padrão comum para APIs
+    pathBasedRouting:
+      # Habilita roteamento /service-name/* -> /* (desabilitado por padrão)
+      enabled: false
+
+      # Caminho do serviço (se vazio, usa o nome do chart)
+      # Ex: "api" criará rota "/api/*" -> "/*"
+      servicePath: ""
+
+    # Suporte para deploy canário (blue/green)
+    canary:
+      # Habilita deploy canário (desabilitado por padrão)
+      enabled: false
+
+      # Porcentagem de tráfego para a versão canário (0-100)
+      weight: 0
+
+  # Configuração do RequestAuthentication - autenticação JWT
+  requestAuthentication:
+    # Habilita autenticação JWT (desabilitado por padrão)
+    enabled: false
+
+    # Regras para validação de tokens JWT
+    jwtRules: []
+    # Exemplo:
+    # jwtRules:
+    # - issuer: "https://auth.example.com"
+    #   jwksUri: "https://auth.example.com/.well-known/jwks.json"
+    #   audiences:
+    #   - "my-api"
+    #   fromHeaders:
+    #   - name: "Authorization"
+    #     prefix: "Bearer "
+
+  # Configuração do AuthorizationPolicy - controle de acesso
+  authorizationPolicy:
+    # Habilita política de autorização (desabilitado por padrão)
+    enabled: false
+
+    # Ação padrão: ALLOW (permitir), DENY (negar), CUSTOM (personalizada)
+    action: "ALLOW"
+
+    # Regras de autorização - por padrão permite tudo
+    rules:
+      - {} # Regra vazia = permite tudo
+    # Exemplo de regras específicas:
+    # rules:
+    # - from:
+    #   - source:
+    #       principals: ["cluster.local/ns/default/sa/frontend"]
+    #   to:
+    #   - operation:
+    #       methods: ["GET", "POST"]
+    #       paths: ["/api/v1/*"]
+    #   when:
+    #   - key: request.auth.claims[role]
+    #     values: ["admin", "user"]
+
+  # Configuração do DestinationRule - políticas de tráfego L4/L3
+  destinationRule:
+    # Habilita DestinationRule com configurações de produção (habilitado por padrão)
+    enabled: true
+
+    # Políticas de tráfego para conexões
+    trafficPolicy:
+      # Pool de conexões - otimizado para produção
+      connectionPool:
+        # Configurações TCP
+        tcp:
+          maxConnections: 100 # Máximo de conexões TCP simultâneas
+          connectTimeout: "30s" # Timeout para estabelecer conexão
+          tcpKeepalive:
+            time: "7200s" # Tempo antes de enviar keepalive (2h)
+            interval: "75s" # Intervalo entre keepalives
+
+        # Configurações HTTP
+        http:
+          http1MaxPendingRequests: 10 # Max requests pendentes HTTP/1.1
+          http2MaxRequests: 100 # Max requests simultâneas HTTP/2
+          maxRequestsPerConnection: 2 # Max requests por conexão HTTP/1.1
+          maxRetries: 3 # Tentativas de retry automático
+          idleTimeout: "60s" # Timeout para conexões idle
+
+      # Detecção de outliers - remove endpoints problemáticos
+      outlierDetection:
+        consecutiveGatewayErrors: 5 # Erros consecutivos para ejetar
+        interval: "30s" # Intervalo entre análises
+        baseEjectionTime: "30s" # Tempo base de ejeção
+        maxEjectionPercent: 50 # Máximo de endpoints ejetados (%)
+        minHealthPercent: 50 # Mínimo de endpoints saudáveis (%)
+
+      # Configuração do load balancer
+      loadBalancer:
+        simple: "LEAST_REQUEST" # ROUND_ROBIN, LEAST_REQUEST, RANDOM, PASSTHROUGH
+        localityLbSetting:
+          enabled: true # Prefere endpoints na mesma zona/região
+
+    # Configurações específicas por porta (opcional)
+    portLevelSettings: []
+    # Exemplo:
+    # portLevelSettings:
+    # - port:
+    #     number: 80
+    #   connectionPool:
+    #     tcp:
+    #       maxConnections: 200
+
+# KEDA ScaledObject - autoscaling baseado em métricas externas
+# Mais informações: https://keda.sh/docs/concepts/scaling-deployments/
+scaledObject:
+  # Habilita KEDA ScaledObject (habilitado por padrão)
+  enabled: true
+
+  # Número mínimo de réplicas (pode ser 0 para scale-to-zero)
+  minReplicaCount: 1
+
+  # Número máximo de réplicas
+  maxReplicaCount: 10
+
+  # Intervalo entre verificações de métricas (segundos)
+  pollingInterval: 30
+
+  # Tempo de espera após última métrica antes de fazer scale down (segundos)
+  cooldownPeriod: 300
+
+  # Triggers para autoscaling - suporte a múltiplas fontes de métricas
+  triggers: []
+  # Exemplo com Prometheus:
+  # triggers:
+  # - type: prometheus
+  #   metadata:
+  #     serverAddress: http://prometheus.istio-system.svc.cluster.local:9090
+  #     metricName: istio_requests_per_second
+  #     threshold: "100"
+  #     query: sum(rate(istio_requests_total{destination_app="my-app"}[2m]))
+  #
+  # Exemplo com RabbitMQ:
+  # - type: rabbitmq
+  #   metadata:
+  #     protocol: amqp
+  #     host: rabbitmq.default.svc.cluster.local:5672
+  #     queueName: task-queue
+  #     queueLength: "10"
+
+# PodDisruptionBudget - garante disponibilidade durante atualizações e manutenções
+# Mais informações: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
+podDisruptionBudget:
+  # Habilita PodDisruptionBudget (habilitado por padrão)
+  enabled: true
+
+  # Número mínimo de pods que devem estar disponíveis
+  # Use um dos dois: minAvailable OU maxUnavailable (não ambos)
+  minAvailable: 1
+
+  # Número máximo de pods que podem estar indisponíveis (alternativa ao minAvailable)
+  # maxUnavailable: 1
+
+  # Também aceita porcentagens:
+  # minAvailable: "50%"
+  # maxUnavailable: "30%"
+
+# Argo Image Updater - atualização automática de imagens Docker
+# Mais informações: https://argocd-image-updater.readthedocs.io/
+argoImageUpdater:
+  # Habilita o Argo Image Updater (desabilitado por padrão)
+  enabled: false
+
+  # Namespace onde o Argo CD está instalado
+  namespace: argocd
+
+  # Anotações adicionais para o recurso ImageUpdater
+  annotations: {}
+
+  # Labels adicionais para o recurso ImageUpdater
+  labels: {}
+
+  # Referência à aplicação Argo CD
+  applicationRef:
+    # Padrão do nome da aplicação (regex suportado)
+    namePattern: ""
+
+    # Namespace da aplicação Argo CD (opcional)
+    namespace: ""
+
+  # Lista de imagens a serem monitoradas para atualizações
+  images: []
+  # Exemplo:
+  # images:
+  # - alias: "api"
+  #   imageName: "ghcr.io/company/app-api"
+  #   registrySecret: "ghcr-credentials"  # Opcional
+  #   commonUpdateSettings:
+  #     updateStrategy: "digest"  # ou "semver", "latest"
+  #     semverConstraint: "^1.0.0"  # Apenas para strategy semver
+  #     platforms:
+  #       - linux/amd64
+  #       - linux/arm64
+  #     ignoreTags:
+  #       - "*-rc*"
+  #       - "*-beta*"
+  #     ignoreDigests:
+  #       - "sha256:abc123..."
+  #
+  # - alias: "frontend"
+  #   imageName: "ghcr.io/company/app-frontend"
+  #   commonUpdateSettings:
+  #     updateStrategy: "semver"
+  #     semverConstraint: "~1.2.0"

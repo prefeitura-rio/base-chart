@@ -1,0 +1,106 @@
+name: Publish Helm Chart to GCS
+
+on:
+  push:
+    branches: [master]
+    paths: ["chart/**"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  CHART_DIR: chart
+  REGISTRY_LOCATION: ${{ vars.REGISTRY_LOCATION || 'us-west1' }}
+  PROJECT_ID: ${{ vars.PROJECT_ID }}
+  REPOSITORY_NAME: ${{ vars.REPOSITORY_NAME || 'base-chart' }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+        with:
+          just-version: 1.6.3
+
+      - name: Run lint and test
+        run: just lint test
+
+      - name: Package Helm chart
+        run: helm package ${{ env.CHART_DIR }} --destination ./packaged/
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate Helm with Artifact Registry
+        run: gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{ env.REGISTRY_LOCATION }}-docker.pkg.dev
+
+      - name: Push chart to Artifact Registry
+        run: helm push "./packaged-charts"/*.tgz oci://${{ env.REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}
+
+      - name: Make repository publicly accessible
+        run: gcloud artifacts repositories add-iam-policy-binding ${{ env.REPOSITORY_NAME }} --location=${{ env.REGISTRY_LOCATION }} --member=allUsers --role=roles/artifactregistry.reader
+
+      - name: Verify chart upload
+        run: |
+          CHART_NAME=$(yq eval '.name' ${{ env.CHART_DIR }}/Chart.yaml)
+
+          echo "Verifying chart upload..."
+          gcloud artifacts packages list --repository=${{ env.REPOSITORY_NAME }} --location=${{ env.REGISTRY_LOCATION }} --format="table(name,createTime,updateTime)"
+
+          echo "Checking chart versions..."
+          gcloud artifacts versions list --package=$CHART_NAME --repository=${{ env.REPOSITORY_NAME }} --location=${{ env.REGISTRY_LOCATION }} --format="table(name,createTime)"
+
+      - name: Create GitHub release (for version tags)
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CHART_NAME=$(yq eval '.name' ${{ env.CHART_DIR }}/Chart.yaml)
+          CHART_VERSION=$(yq eval '.version' ${{ env.CHART_DIR }}/Chart.yaml)
+
+          gh release create "v$CHART_VERSION" \
+            --title "Release v$CHART_VERSION" \
+            --notes "## Helm Chart Release v$CHART_VERSION
+
+          This release contains the Helm chart **$CHART_NAME** version $CHART_VERSION.
+
+          **✅ Publicly available** - No authentication required to pull this chart.
+
+          ### Installation
+
+          \`\`\`bash
+          helm install my-release oci://${{ env.REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/$CHART_NAME --version $CHART_VERSION
+          \`\`\`
+
+          ### Pull Chart
+
+          \`\`\`bash
+          helm pull oci://${{ env.REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/$CHART_NAME --version $CHART_VERSION
+          \`\`\`
+
+          ### Repository Details
+
+          - **Registry**: Google Cloud Artifact Registry
+          - **Location**: ${{ env.REGISTRY_LOCATION }}
+          - **Repository**: ${{ env.REPOSITORY_NAME }}
+          - **Public Access**: ✅ Enabled
+
+          ### Changes
+
+          - Chart **$CHART_NAME** version $CHART_VERSION
+          - Published to: \`oci://${{ env.REGISTRY_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}\`"

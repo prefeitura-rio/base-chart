@@ -1,0 +1,64 @@
+{{- if .Values.argoImageUpdater.enabled }}
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: {{ include "base-chart.fullname" . }}
+  namespace: {{ .Values.argoImageUpdater.namespace }}
+  {{- with .Values.argoImageUpdater.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "base-chart.labels" . | nindent 4 }}
+    {{- with .Values.argoImageUpdater.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespace: {{ .Values.argoImageUpdater.namespace }}
+  applicationRefs:
+    - namePattern: {{ .Values.argoImageUpdater.applicationRef.namePattern | quote }}
+      {{- if .Values.argoImageUpdater.applicationRef.namespace }}
+      namespace: {{ .Values.argoImageUpdater.applicationRef.namespace }}
+      {{- end }}
+      images:
+        {{- range .Values.argoImageUpdater.images }}
+        - alias: {{ .alias | quote }}
+          imageName: {{ .imageName | quote }}
+          {{- if .registrySecret }}
+          registrySecret: {{ .registrySecret | quote }}
+          {{- end }}
+          {{- if .commonUpdateSettings }}
+          commonUpdateSettings:
+            {{- with .commonUpdateSettings.updateStrategy }}
+            updateStrategy: {{ . | quote }}
+            {{- end }}
+            {{- with .commonUpdateSettings.kustomizePath }}
+            kustomizePath: {{ . | quote }}
+            {{- end }}
+            {{- with .commonUpdateSettings.helmPath }}
+            helmPath: {{ . | quote }}
+            {{- end }}
+            {{- with .commonUpdateSettings.helmValues }}
+            helmValues: {{ . | quote }}
+            {{- end }}
+            {{- with .commonUpdateSettings.platforms }}
+            platforms:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .commonUpdateSettings.ignoreDigests }}
+            ignoreDigests:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .commonUpdateSettings.ignoreTags }}
+            ignoreTags:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .commonUpdateSettings.semverConstraint }}
+            semverConstraint: {{ . | quote }}
+            {{- end }}
+            {{- with .commonUpdateSettings.matchOption }}
+            matchOption: {{ . | quote }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+{{- end }}

@@ -1,0 +1,99 @@
+suite: test deployment
+templates:
+  - deployment.yaml
+tests:
+  - it: should render deployment with default values
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-base-chart
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "nginx:1.16.0"
+
+  - it: should use custom image when specified
+    set:
+      image.repository: custom-app
+      image.tag: "v2.0.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "custom-app:v2.0.0"
+
+  - it: should not set replicas when autoscaling is enabled
+    set:
+      autoscaling.enabled: true
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should add Istio sidecar annotations when enabled
+    set:
+      istio.enabled: true
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["sidecar.istio.io/rewriteAppHTTPProbers"]
+          value: "false"
+      - equal:
+          path: spec.template.metadata.annotations["sidecar.istio.io/proxyCPU"]
+          value: "100m"
+
+  - it: should include Infisical auto-reload annotation
+    asserts:
+      - equal:
+          path: metadata.annotations["secrets.infisical.com/auto-reload"]
+          value: "true"
+
+  - it: should add security context when specified
+    set:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1000
+
+  - it: should add resource limits when specified
+    set:
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 250m
+          memory: 256Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: 500m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 256Mi
+
+  - it: should add environment variables from envFrom
+    set:
+      envFrom:
+        - secretRef:
+            name: app-secrets
+        - configMapRef:
+            name: app-config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: app-secrets
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: app-config

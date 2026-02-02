@@ -1,0 +1,86 @@
+{{- if and .Values.istio.enabled .Values.istio.virtualService.enabled -}}
+{{- $fullName := include "base-chart.fullname" . -}}
+{{- $servicePath := .Values.istio.virtualService.pathBasedRouting.servicePath | default (include "base-chart.name" .) -}}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "base-chart.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.istio.virtualService.hosts }}
+  hosts:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.istio.virtualService.gateways }}
+  gateways:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  http:
+  {{- if .Values.istio.virtualService.pathBasedRouting.enabled }}
+    - name: "primary"
+      match:
+        - uri:
+            prefix: "/{{ $servicePath }}/"
+      rewrite:
+        uri: "/"
+      route:
+        - destination:
+            host: {{ $fullName }}
+            port:
+              number: {{ .Values.service.port }}
+          weight: {{ sub 100 (.Values.istio.virtualService.canary.weight | int) }}
+        {{- if .Values.istio.virtualService.canary.enabled }}
+        - destination:
+            host: {{ $fullName }}-canary
+            port:
+              number: {{ .Values.service.port }}
+          weight: {{ .Values.istio.virtualService.canary.weight }}
+        {{- end }}
+  {{- else if .Values.istio.virtualService.http }}
+    {{- range .Values.istio.virtualService.http }}
+    - {{- if .match }}
+      match:
+        {{- toYaml .match | nindent 8 }}
+      {{- end }}
+      {{- if .rewrite }}
+      rewrite:
+        {{- toYaml .rewrite | nindent 8 }}
+      {{- end }}
+      {{- if .route }}
+      route:
+        {{- range .route }}
+        - destination:
+            host: {{ .destination.host | default $fullName }}
+            {{- if .destination.port }}
+            port:
+              {{- toYaml .destination.port | nindent 14 }}
+            {{- end }}
+            {{- if .destination.subset }}
+            subset: {{ .destination.subset }}
+            {{- end }}
+          {{- if .weight }}
+          weight: {{ .weight }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- if .fault }}
+      fault:
+        {{- toYaml .fault | nindent 8 }}
+      {{- end }}
+      {{- if .timeout }}
+      timeout: {{ .timeout }}
+      {{- end }}
+      {{- if .retries }}
+      retries:
+        {{- toYaml .retries | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- else }}
+    - route:
+        - destination:
+            host: {{ $fullName }}
+            port:
+              number: {{ .Values.service.port }}
+  {{- end }}
+{{- end }}

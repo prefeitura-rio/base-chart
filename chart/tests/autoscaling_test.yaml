@@ -1,0 +1,67 @@
+suite: test autoscaling
+templates:
+  - hpa.yaml
+  - scaledobject.yaml
+tests:
+  - it: HPA should not render when autoscaling is disabled
+    template: hpa.yaml
+    set:
+      autoscaling.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: HPA should render when autoscaling is enabled
+    template: hpa.yaml
+    set:
+      autoscaling.enabled: true
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.minReplicas
+          value: 1
+      - equal:
+          path: spec.maxReplicas
+          value: 100
+      - equal:
+          path: spec.targetCPUUtilizationPercentage
+          value: 80
+
+  - it: KEDA ScaledObject should render by default
+    template: scaledobject.yaml
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.minReplicaCount
+          value: 1
+      - equal:
+          path: spec.maxReplicaCount
+          value: 10
+
+  - it: KEDA should not render when disabled
+    template: scaledobject.yaml
+    set:
+      scaledObject.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: KEDA should configure triggers when specified
+    template: scaledobject.yaml
+    set:
+      scaledObject.triggers:
+        - type: prometheus
+          metadata:
+            serverAddress: http://prometheus:9090
+            metricName: http_requests_per_second
+            threshold: "100"
+            query: sum(rate(http_requests_total[2m]))
+    asserts:
+      - equal:
+          path: spec.triggers[0].type
+          value: prometheus
+      - equal:
+          path: spec.triggers[0].metadata.threshold
+          value: "100"
