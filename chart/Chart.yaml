@@ -3,4 +3,5 @@ name: base-chart
 description: A Helm chart for basic deployments in Kubernetes
 type: application
 version: 1.0.0
-appVersion: "1.16.0"
+appVersion: "1.25"
+icon: https://helm.sh/img/helm.svg

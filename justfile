@@ -11,25 +11,25 @@ default: lint test
 @test:
     echo "*** Testing all chart templates... ***"
     echo "*** Testing basic templates (deployment, service)... ***"
-    helm template test chart/ --dry-run > /dev/null
+    helm template test chart/ --dry-run=client > /dev/null
     echo "*** Testing HPA template... ***"
-    helm template test chart/ --set autoscaling.enabled=true --dry-run > /dev/null
+    helm template test chart/ --set autoscaling.enabled=true --dry-run=client > /dev/null
     echo "*** Testing KEDA ScaledObject template... ***"
-    helm template test chart/ --set scaledObject.enabled=true --dry-run > /dev/null
+    helm template test chart/ --set scaledObject.enabled=true --dry-run=client > /dev/null
     echo "*** Testing PodDisruptionBudget template... ***"
-    helm template test chart/ --set podDisruptionBudget.enabled=true --dry-run > /dev/null
+    helm template test chart/ --set podDisruptionBudget.enabled=true --dry-run=client > /dev/null
     echo "*** Testing VirtualService template... ***"
-    helm template test chart/ --set istio.enabled=true --set istio.virtualService.enabled=true --dry-run > /dev/null
+    helm template test chart/ --set istio.enabled=true --set istio.virtualService.enabled=true --dry-run=client > /dev/null
     echo "*** Testing DestinationRule template... ***"
-    helm template test chart/ --set istio.enabled=true --set istio.destinationRule.enabled=true --dry-run > /dev/null
+    helm template test chart/ --set istio.enabled=true --set istio.destinationRule.enabled=true --dry-run=client > /dev/null
     echo "*** Testing RequestAuthentication template... ***"
-    helm template test chart/ --set istio.enabled=true --set istio.requestAuthentication.enabled=true --dry-run > /dev/null
+    helm template test chart/ --set istio.enabled=true --set istio.requestAuthentication.enabled=true --dry-run=client > /dev/null
     echo "*** Testing AuthorizationPolicy template... ***"
-    helm template test chart/ --set istio.enabled=true --set istio.authorizationPolicy.enabled=true --dry-run > /dev/null
+    helm template test chart/ --set istio.enabled=true --set istio.authorizationPolicy.enabled=true --dry-run=client > /dev/null
     echo "*** Testing NOTES.txt with different service types... ***"
-    helm template test chart/ --set service.type=NodePort --dry-run > /dev/null
-    helm template test chart/ --set service.type=LoadBalancer --dry-run > /dev/null
-    helm template test chart/ --set service.type=ClusterIP --dry-run > /dev/null
+    helm template test chart/ --set service.type=NodePort --dry-run=client > /dev/null
+    helm template test chart/ --set service.type=LoadBalancer --dry-run=client > /dev/null
+    helm template test chart/ --set service.type=ClusterIP --dry-run=client > /dev/null
     echo "*** Testing all features enabled... ***"
     helm template test chart/ \
         --set istio.enabled=true \
@@ -40,7 +40,7 @@ default: lint test
         --set autoscaling.enabled=true \
         --set scaledObject.enabled=true \
         --set podDisruptionBudget.enabled=true \
-        --dry-run > /dev/null
+        --dry-run=client > /dev/null
     echo "*** All 10 templates tested successfully! ***"
 
 # Generate all rendered templates to debug directory
