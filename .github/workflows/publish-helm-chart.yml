@@ -12,7 +12,7 @@ env:
   CHART_DIR: chart
   REGISTRY_LOCATION: ${{ vars.REGISTRY_LOCATION || 'us-west1' }}
   PROJECT_ID: ${{ vars.PROJECT_ID }}
-  REPOSITORY_NAME: ${{ vars.REPOSITORY_NAME || 'base-chart' }}
+  REPOSITORY_NAME: ${{ vars.REPOSITORY_NAME || 'charts' }}
 
 jobs:
   publish:
