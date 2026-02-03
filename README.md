@@ -18,16 +18,16 @@ Um Helm chart pronto para produção para deployments Kubernetes com integraçã
 
 ```bash
 # Instalação direta do Artifact Registry (publicamente acessível)
-helm install my-app oci://us-west1-docker.pkg.dev/SEU_PROJECT_ID/base-chart/base-chart --version 0.1.0
+helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart --version 0.1.0
 
 # Deploy com configurações customizadas
-helm install my-app oci://us-west1-docker.pkg.dev/SEU_PROJECT_ID/base-chart/base-chart \
+helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart \
   --set image.repository=my-app \
   --set image.tag=v1.0.0 \
   --set replicaCount=3
 
 # Deploy sem Istio
-helm install my-app oci://us-west1-docker.pkg.dev/SEU_PROJECT_ID/base-chart/base-chart \
+helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart \
   --set istio.enabled=false
 ```
 
@@ -49,7 +49,7 @@ helm install my-app ./chart \
 ### 1. Aplicação Web Simples
 
 ```bash
-helm install web-app oci://us-west1-docker.pkg.dev/SEU_PROJECT_ID/base-chart/base-chart \
+helm install web-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart \
   --set image.repository=nginx \
   --set service.port=80
 ```
@@ -138,7 +138,7 @@ Para contribuir e publicar novas versões:
 ### Habilitando Istio em Deploy Existente
 
 1. Certifique-se de que o Istio está instalado no cluster
-2. Atualize: `helm upgrade my-app oci://us-west1-docker.pkg.dev/SEU_PROJECT_ID/base-chart/base-chart --set istio.enabled=true`
+2. Atualize: `helm upgrade my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart --set istio.enabled=true`
 
 ### Problemas Comuns
 
