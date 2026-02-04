@@ -102,25 +102,30 @@ resources: {}
 # Probe de liveness - verifica se o container está funcionando
 # Se falhar, o Kubernetes reinicia o container
 # Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+# Probe de liveness - verifica se o container está funcionando
+# Se falhar, o Kubernetes reinicia o container
+# Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
   httpGet:
     path: / # Caminho para verificar (pode ser /health, /alive, etc.)
-    port: http # Porta definida no container
+    # port: 8080 # Porta é opcional - usa service.containerPort se omitida
 
 # Probe de readiness - verifica se o container está pronto para receber tráfego
 # Se falhar, remove o pod do service (não mata o container)
 readinessProbe:
   httpGet:
     path: / # Caminho para verificar (pode ser /ready, /healthz, etc.)
-    port: http # Porta definida no container
+    # port: 8080 # Porta é opcional - usa service.containerPort se omitida
 
-# Configuração opcional de timing para os health probes
-healthProbes:
-  # Tempo de espera antes de iniciar os probes (segundos)
-  # initialDelaySeconds: 30
-
-  # Intervalo entre execuções dos probes (segundos)
-  # periodSeconds: 10
+# Exemplo para usar porta diferente para health checks:
+# livenessProbe:
+#   httpGet:
+#     path: /health
+#     port: 9090  # Porta específica para health endpoints
+# readinessProbe:
+#   httpGet:
+#     path: /ready
+#     port: 9090  # Porta específica para health endpoints
 
 # Horizontal Pod Autoscaler - escalonamento automático baseado em CPU/memória
 # Mais informações: https://kubernetes.io/docs/concepts/workloads/autoscaling/
