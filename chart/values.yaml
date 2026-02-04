@@ -83,6 +83,10 @@ service:
   # Porta na qual o service será exposto
   port: 80
 
+  # Porta do container onde a aplicação está escutando
+  # Esta porta deve corresponder à porta que sua aplicação usa internamente
+  containerPort: 8080
+
 # Limites e requests de recursos para o container
 # É recomendado definir estes valores para ambientes de produção
 resources: {}
