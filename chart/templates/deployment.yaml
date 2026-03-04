@@ -31,6 +31,9 @@ spec:
       {{- end }}
       labels:
         {{- include "base-chart.labels" . | nindent 8 }}
+        {{- if .Values.istio.enabled }}
+        sidecar.istio.io/inject: "true"
+        {{- end }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

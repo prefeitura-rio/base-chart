@@ -634,6 +634,16 @@ cronjobs: {}
 #         memory: 2Gi
 #     activeDeadlineSeconds: 3600  # 1 hora de timeout
 
+# Valkey (Redis-compatible cache)
+# When enabled, the following environment variables are automatically injected:
+#   - REDIS_HOST: <release>-valkey (service hostname)
+#   - REDIS_PORT: 6379
+#   - REDIS_PASSWORD: from Infisical secret (requires infisicalSecret.enabled)
+#
+# Connection string format (built by application):
+#   redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/0
+#
+# Note: Redis uses password-only authentication (no username required)
 valkey:
   enabled: false
   architecture: standalone
@@ -646,6 +656,16 @@ valkey:
     enabled: true
     size: 8Gi
 
+# RabbitMQ (Message Queue)
+# When enabled, the following environment variables are automatically injected:
+#   - RABBITMQ_HOST: <release>-rabbitmq (service hostname)
+#   - RABBITMQ_PORT: 5672 (AMQP port)
+#   - RABBITMQ_USER: <release> (release name)
+#   - RABBITMQ_PASSWORD: from Infisical secret (requires infisicalSecret.enabled)
+#   - RABBITMQ_ERLANG_COOKIE: from Infisical secret (for clustering)
+#
+# Connection string format (built by application):
+#   amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
 rabbitmq:
   enabled: false
   replicaCount: 1
