@@ -1,6 +1,21 @@
-# Valores padrão para o base-chart.
-# Este é um arquivo formatado em YAML.
-# Declare variáveis para serem passadas para os templates.
+# Base Chart v2.0 - Valores padrao
+#
+# Novidades v2.0:
+# - global.secretName: fonte unica para nome do secret (usado por Infisical, Valkey, RabbitMQ)
+# - serviceAccount: suporte a Workload Identity (GCP) e IRSA (AWS)
+# - cronjobs: multiplos jobs agendados com heranca do deployment
+# - istio.virtualService: timeout, retries, headers, CORS
+# - istio.authorizationPolicy.provider: suporte a Cerbos/OPA
+# - valkey/rabbitmq: subcharts com integracao Infisical
+#
+# Sync Waves (ordem de aplicacao pelo ArgoCD):
+# -1: InfisicalSecret | 0: ServiceAccount | 1: Service, Deployment
+# 2: ScaledObject, HPA, PDB, CronJobs | 3: Recursos Istio
+
+# Nome do secret Kubernetes (usado por todos os componentes)
+# Defina aqui e sera usado por: infisicalSecret, valkey, rabbitmq
+global:
+  secretName: ""
 
 # Define a quantidade de réplicas do deployment
 # Mais informações: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
@@ -33,6 +48,28 @@ nameOverride: ""
 
 # Sobrescrita completa do nome (afeta nomes de recursos)
 fullnameOverride: ""
+
+# Configuração do ServiceAccount
+# Mais informações: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Cria um ServiceAccount para o deployment
+  create: false
+
+  # Anotações para o ServiceAccount (útil para Workload Identity, IAM roles, etc.)
+  annotations: {}
+  # Exemplo para GCP Workload Identity:
+  # annotations:
+  #   iam.gke.io/gcp-service-account: my-sa@my-project.iam.gserviceaccount.com
+  #
+  # Exemplo para AWS IRSA:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/my-role
+
+  # Nome do ServiceAccount (se vazio, usa o nome do release)
+  name: ""
+
+  # Monta automaticamente o token do ServiceAccount no pod
+  automount: true
 
 # Anotações adicionais para os pods
 # Mais informações: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
@@ -169,14 +206,10 @@ volumeMounts: []
 #   readOnly: true
 
 # Variáveis de ambiente vindas de Secrets ou ConfigMaps
-# Mais informações: https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables
 envFrom: []
-# Exemplo:
-# envFrom:
-# - secretRef:
-#     name: database-credentials    # Todas as chaves do secret viram env vars
-# - configMapRef:
-#     name: app-config             # Todas as chaves do configmap viram env vars
+
+# Variáveis de ambiente individuais
+env: []
 
 # Configuração completa do Istio para service mesh
 # Mais informações: https://istio.io/latest/docs/
@@ -222,21 +255,93 @@ istio:
     # - api.example.com
     # - internal-service.mesh.local
 
-    # Regras HTTP customizadas (configuração avançada)
-    http: []
+    # Timeout global para todas as rotas (formato: 30s, 1m, etc.)
+    # Mais informações: https://istio.io/latest/docs/reference/config/networking/virtual-service/#HTTPRoute
+    timeout: ""
     # Exemplo:
+    # timeout: "30s"
+
+    # Configuração de retries global
+    retries: {}
+    # Exemplo:
+    # retries:
+    #   attempts: 3
+    #   perTryTimeout: "2s"
+    #   retryOn: "connect-failure,refused-stream,unavailable,cancelled,retriable-status-codes"
+    #   retryRemoteLocalities: true
+
+    # Manipulação de headers (request e response)
+    # Mais informações: https://istio.io/latest/docs/reference/config/networking/virtual-service/#Headers
+    headers: {}
+    # Exemplo para cache de assets estáticos:
+    # headers:
+    #   response:
+    #     set:
+    #       cache-control: "public, max-age=86400, immutable"
+    #       vary: "Accept-Encoding"
+    #   request:
+    #     set:
+    #       x-custom-header: "value"
+    #     add:
+    #       x-request-id: "{{request.headers.x-request-id}}"
+    #     remove:
+    #       - x-internal-header
+
+    # Política CORS (Cross-Origin Resource Sharing)
+    # Mais informações: https://istio.io/latest/docs/reference/config/networking/virtual-service/#CorsPolicy
+    corsPolicy: {}
+    # Exemplo:
+    # corsPolicy:
+    #   allowOrigins:
+    #     - exact: "https://example.com"
+    #     - prefix: "https://"
+    #   allowMethods:
+    #     - GET
+    #     - POST
+    #     - PUT
+    #     - DELETE
+    #   allowHeaders:
+    #     - Authorization
+    #     - Content-Type
+    #   exposeHeaders:
+    #     - X-Custom-Header
+    #   maxAge: "24h"
+    #   allowCredentials: true
+
+    # Regras HTTP customizadas (configuração avançada)
+    # Quando definido, substitui o roteamento padrão
+    http: []
+    # Exemplo com headers e timeout por rota:
     # http:
-    # - match:
-    #   - uri:
-    #       prefix: /v1/api
+    # - name: "static-assets"
+    #   match:
+    #     - uri:
+    #         prefix: "/_next/static/"
+    #   headers:
+    #     response:
+    #       set:
+    #         cache-control: "public, max-age=86400, immutable"
+    #         vary: "Accept-Encoding"
     #   route:
-    #   - destination:
-    #       host: my-service-v1
-    #   fault:
-    #     delay:
-    #       percentage:
-    #         value: 0.1
-    #       fixedDelay: 5s
+    #     - destination:
+    #         host: my-service
+    #         port:
+    #           number: 80
+    # - name: "api"
+    #   match:
+    #     - uri:
+    #         prefix: "/api/"
+    #   timeout: "60s"
+    #   retries:
+    #     attempts: 3
+    #     perTryTimeout: "10s"
+    #   headers:
+    #     request:
+    #       set:
+    #         x-api-version: "v1"
+    #   route:
+    #     - destination:
+    #         host: my-service
 
     # Roteamento baseado em caminho - padrão comum para APIs
     pathBasedRouting:
@@ -246,6 +351,9 @@ istio:
       # Caminho do serviço (se vazio, usa o nome do chart)
       # Ex: "api" criará rota "/api/*" -> "/*"
       servicePath: ""
+
+      # Headers específicos para este roteamento (sobrescreve headers global)
+      headers: {}
 
     # Suporte para deploy canário (blue/green)
     canary:
@@ -280,21 +388,15 @@ istio:
     # Ação padrão: ALLOW (permitir), DENY (negar), CUSTOM (personalizada)
     action: "ALLOW"
 
+    # Provider para ação CUSTOM (ex: Cerbos, OPA)
+    provider: {}
+    # Exemplo para Cerbos:
+    # provider:
+    #   name: "cerbos-authz"
+
     # Regras de autorização - por padrão permite tudo
     rules:
       - {} # Regra vazia = permite tudo
-    # Exemplo de regras específicas:
-    # rules:
-    # - from:
-    #   - source:
-    #       principals: ["cluster.local/ns/default/sa/frontend"]
-    #   to:
-    #   - operation:
-    #       methods: ["GET", "POST"]
-    #       paths: ["/api/v1/*"]
-    #   when:
-    #   - key: request.auth.claims[role]
-    #     values: ["admin", "user"]
 
   # Configuração do DestinationRule - políticas de tráfego L4/L3
   destinationRule:
@@ -369,7 +471,7 @@ scaledObject:
   # triggers:
   # - type: prometheus
   #   metadata:
-  #     serverAddress: http://prometheus.istio-system.svc.cluster.local:9090
+  #     serverAddress: http://prometheus-server.istio-system.svc.cluster.local:9090
   #     metricName: istio_requests_per_second
   #     threshold: "100"
   #     query: sum(rate(istio_requests_total{destination_app="my-app"}[2m]))
@@ -471,6 +573,97 @@ argoImageUpdater:
   #
   # - alias: "frontend"
   #   imageName: "ghcr.io/company/app-frontend"
-  #   commonUpdateSettings:
-  #     updateStrategy: "semver"
-  #     semverConstraint: "~1.2.0"
+#   commonUpdateSettings:
+#     updateStrategy: "semver"
+#     semverConstraint: "~1.2.0"
+
+# CronJobs - tarefas agendadas
+# Mais informações: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+cronjobs: {}
+# Exemplo:
+# cronjobs:
+#   cleanup:
+#     enabled: true
+#     schedule: "0 2 * * *"  # Diariamente às 2h (formato cron)
+#     command:
+#       - /bin/sh
+#       - -c
+#       - "python manage.py cleanup"
+#     # Configurações opcionais:
+#     # image:
+#     #   repository: my-custom-image  # Usa image.repository do deployment se omitido
+#     #   tag: "1.0.0"                 # Usa image.tag do deployment se omitido
+#     #   pullPolicy: IfNotPresent
+#     # args: []                       # Argumentos adicionais para o comando
+#     # env:                           # Variáveis de ambiente específicas do job
+#     #   - name: MY_VAR
+#     #     value: "my-value"
+#     # envFrom: []                    # Secrets/ConfigMaps adicionais (herda do deployment)
+#     # resources:                     # Recursos específicos (herda do deployment se omitido)
+#     #   limits:
+#     #     cpu: 500m
+#     #     memory: 512Mi
+#     #   requests:
+#     #     cpu: 100m
+#     #     memory: 128Mi
+#     # concurrencyPolicy: Forbid      # Forbid, Allow, Replace
+#     # successfulJobsHistoryLimit: 3  # Quantos jobs bem-sucedidos manter
+#     # failedJobsHistoryLimit: 1      # Quantos jobs com falha manter
+#     # startingDeadlineSeconds: 200   # Deadline para iniciar o job
+#     # activeDeadlineSeconds: 600     # Timeout máximo de execução
+#     # backoffLimit: 3                # Tentativas em caso de falha
+#     # ttlSecondsAfterFinished: 3600  # Tempo para deletar job após conclusão
+#     # restartPolicy: OnFailure       # OnFailure, Never
+#     # suspend: false                 # Suspender execuções futuras
+#     # podAnnotations: {}             # Anotações específicas do pod
+#     # podSecurityContext: {}         # Contexto de segurança do pod
+#     # securityContext: {}            # Contexto de segurança do container
+#     # volumes: []                    # Volumes específicos (herda do deployment se omitido)
+#     # volumeMounts: []               # Montagens específicas (herda do deployment se omitido)
+#
+#   database-backup:
+#     enabled: true
+#     schedule: "0 5 * * *"  # Diariamente às 5h UTC
+#     command:
+#       - /bin/sh
+#       - -c
+#       - "pg_dump $DATABASE_URL | gzip > /backup/db-$(date +%Y%m%d).sql.gz"
+#     resources:
+#       limits:
+#         cpu: 1
+#         memory: 2Gi
+#     activeDeadlineSeconds: 3600  # 1 hora de timeout
+
+valkey:
+  enabled: false
+  architecture: standalone
+  replicaCount: 1
+  auth:
+    enabled: true
+    existingSecret: "{{ .Values.global.secretName }}"
+    existingSecretPasswordKey: "REDIS_PASSWORD"
+  persistence:
+    enabled: true
+    size: 8Gi
+
+rabbitmq:
+  enabled: false
+  replicaCount: 1
+  auth:
+    enabled: true
+    username: "{{ .Release.Name }}"
+    existingSecret: "{{ .Values.global.secretName }}"
+    existingPasswordKey: "RABBITMQ_PASSWORD"
+    existingErlangCookieKey: "RABBITMQ_ERLANG_COOKIE"
+  persistence:
+    enabled: true
+    size: 8Gi
+  managementPlugin:
+    enabled: true
+  metrics:
+    enabled: true
+    port: 15692
+  service:
+    type: ClusterIP
+    amqpPort: 5672
+    managementPort: 15672

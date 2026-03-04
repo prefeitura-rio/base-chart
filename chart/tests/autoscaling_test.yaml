@@ -25,7 +25,7 @@ tests:
           path: spec.maxReplicas
           value: 100
       - equal:
-          path: spec.targetCPUUtilizationPercentage
+          path: spec.metrics[0].resource.target.averageUtilization
           value: 80
 
   - it: KEDA ScaledObject should render by default

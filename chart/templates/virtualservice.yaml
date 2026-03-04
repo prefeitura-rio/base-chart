@@ -1,51 +1,151 @@
 {{- if and .Values.istio.enabled .Values.istio.virtualService.enabled -}}
 {{- $fullName := include "base-chart.fullname" . -}}
 {{- $servicePath := .Values.istio.virtualService.pathBasedRouting.servicePath | default (include "base-chart.name" .) -}}
+{{- $vs := .Values.istio.virtualService -}}
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: {{ $fullName }}
   labels:
     {{- include "base-chart.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
-  {{- with .Values.istio.virtualService.hosts }}
+  {{- with $vs.hosts }}
   hosts:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.istio.virtualService.gateways }}
+  {{- with $vs.gateways }}
   gateways:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   http:
-  {{- if .Values.istio.virtualService.pathBasedRouting.enabled }}
+  {{- if $vs.pathBasedRouting.enabled }}
     - name: "primary"
       match:
         - uri:
             prefix: "/{{ $servicePath }}/"
       rewrite:
         uri: "/"
+      {{- if $vs.timeout }}
+      timeout: {{ $vs.timeout }}
+      {{- end }}
+      {{- if or $vs.headers $vs.pathBasedRouting.headers }}
+      {{- $headers := $vs.pathBasedRouting.headers | default $vs.headers }}
+      headers:
+        {{- if $headers.request }}
+        request:
+          {{- if $headers.request.set }}
+          set:
+            {{- range $key, $value := $headers.request.set }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $headers.request.add }}
+          add:
+            {{- range $key, $value := $headers.request.add }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $headers.request.remove }}
+          remove:
+            {{- toYaml $headers.request.remove | nindent 12 }}
+          {{- end }}
+        {{- end }}
+        {{- if $headers.response }}
+        response:
+          {{- if $headers.response.set }}
+          set:
+            {{- range $key, $value := $headers.response.set }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $headers.response.add }}
+          add:
+            {{- range $key, $value := $headers.response.add }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $headers.response.remove }}
+          remove:
+            {{- toYaml $headers.response.remove | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $vs.retries }}
+      retries:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $vs.corsPolicy }}
+      corsPolicy:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       route:
         - destination:
             host: {{ $fullName }}
             port:
               number: {{ .Values.service.port }}
-          weight: {{ sub 100 (.Values.istio.virtualService.canary.weight | int) }}
-        {{- if .Values.istio.virtualService.canary.enabled }}
+          weight: {{ sub 100 ($vs.canary.weight | int) }}
+        {{- if $vs.canary.enabled }}
         - destination:
             host: {{ $fullName }}-canary
             port:
               number: {{ .Values.service.port }}
-          weight: {{ .Values.istio.virtualService.canary.weight }}
+          weight: {{ $vs.canary.weight }}
         {{- end }}
-  {{- else if .Values.istio.virtualService.http }}
-    {{- range .Values.istio.virtualService.http }}
-    - {{- if .match }}
+  {{- else if $vs.http }}
+    {{- range $vs.http }}
+    - {{- if .name }}
+      name: {{ .name | quote }}
+      {{- end }}
+      {{- if .match }}
       match:
         {{- toYaml .match | nindent 8 }}
       {{- end }}
       {{- if .rewrite }}
       rewrite:
         {{- toYaml .rewrite | nindent 8 }}
+      {{- end }}
+      {{- if .headers }}
+      headers:
+        {{- if .headers.request }}
+        request:
+          {{- if .headers.request.set }}
+          set:
+            {{- range $key, $value := .headers.request.set }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if .headers.request.add }}
+          add:
+            {{- range $key, $value := .headers.request.add }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if .headers.request.remove }}
+          remove:
+            {{- toYaml .headers.request.remove | nindent 12 }}
+          {{- end }}
+        {{- end }}
+        {{- if .headers.response }}
+        response:
+          {{- if .headers.response.set }}
+          set:
+            {{- range $key, $value := .headers.response.set }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if .headers.response.add }}
+          add:
+            {{- range $key, $value := .headers.response.add }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if .headers.response.remove }}
+          remove:
+            {{- toYaml .headers.response.remove | nindent 12 }}
+          {{- end }}
+        {{- end }}
       {{- end }}
       {{- if .route }}
       route:
@@ -75,6 +175,10 @@ spec:
       retries:
         {{- toYaml .retries | nindent 8 }}
       {{- end }}
+      {{- if .corsPolicy }}
+      corsPolicy:
+        {{- toYaml .corsPolicy | nindent 8 }}
+      {{- end }}
     {{- end }}
   {{- else }}
     - route:
@@ -82,5 +186,57 @@ spec:
             host: {{ $fullName }}
             port:
               number: {{ .Values.service.port }}
+      {{- if $vs.timeout }}
+      timeout: {{ $vs.timeout }}
+      {{- end }}
+      {{- if $vs.headers }}
+      headers:
+        {{- if $vs.headers.request }}
+        request:
+          {{- if $vs.headers.request.set }}
+          set:
+            {{- range $key, $value := $vs.headers.request.set }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $vs.headers.request.add }}
+          add:
+            {{- range $key, $value := $vs.headers.request.add }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $vs.headers.request.remove }}
+          remove:
+            {{- toYaml $vs.headers.request.remove | nindent 12 }}
+          {{- end }}
+        {{- end }}
+        {{- if $vs.headers.response }}
+        response:
+          {{- if $vs.headers.response.set }}
+          set:
+            {{- range $key, $value := $vs.headers.response.set }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $vs.headers.response.add }}
+          add:
+            {{- range $key, $value := $vs.headers.response.add }}
+            {{ $key }}: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if $vs.headers.response.remove }}
+          remove:
+            {{- toYaml $vs.headers.response.remove | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $vs.retries }}
+      retries:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $vs.corsPolicy }}
+      corsPolicy:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
   {{- end }}
 {{- end }}

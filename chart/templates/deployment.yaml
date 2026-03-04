@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "base-chart.fullname" . }}
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     secrets.infisical.com/auto-reload: "true"
   labels:
     {{- include "base-chart.labels" . | nindent 4 }}
@@ -38,6 +39,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ include "base-chart.serviceAccountName" . }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -54,10 +56,30 @@ spec:
           envFrom:
             {{- if .Values.infisicalSecret.enabled }}
             - secretRef:
-                name: {{ .Values.infisicalSecret.secretName }}
+                name: {{ .Values.infisicalSecret.secretName | default .Values.global.secretName }}
             {{- end }}
             {{- with .Values.envFrom }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- if or .Values.env .Values.valkey.enabled .Values.rabbitmq.enabled }}
+          env:
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.valkey.enabled }}
+            - name: REDIS_HOST
+              value: {{ include "base-chart.fullname" . }}-valkey
+            - name: REDIS_PORT
+              value: "6379"
+            {{- end }}
+            {{- if .Values.rabbitmq.enabled }}
+            - name: RABBITMQ_HOST
+              value: {{ include "base-chart.fullname" . }}-rabbitmq
+            - name: RABBITMQ_PORT
+              value: {{ .Values.rabbitmq.service.amqpPort | quote }}
+            - name: RABBITMQ_USER
+              value: {{ .Release.Name }}
             {{- end }}
           {{- end }}
           ports:

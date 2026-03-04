@@ -1,175 +1,183 @@
 # Base Chart
 
-Um Helm chart pronto para produção para deployments Kubernetes com integração completa do Istio service mesh, autoscaling e recursos de alta disponibilidade.
+Helm chart para deployments Kubernetes com Istio, autoscaling e Infisical.
 
-## Funcionalidades
-
-- **Deploy sem Configuração**: Funciona imediatamente com configurações padrão sensatas
-- **Pronto para Produção**: Inclui PodDisruptionBudget, limites de recursos e health probes
-- **Istio Service Mesh**: Integração completa com VirtualService, DestinationRule e políticas de segurança
-- **Auto-Scaling**: Suporte tanto HPA tradicional quanto KEDA ScaledObject
-- **Alta Disponibilidade**: Disruption budgets integrados e connection pooling
-- **Segurança**: Integração com Infisical, autenticação JWT e políticas de autorização
-- **Atualizações Automáticas**: Suporte opcional para Argo Image Updater
-
-## Início Rápido
-
-### Instalação Direta (Público)
+## Instalacao
 
 ```bash
-# Instalação direta do Artifact Registry (publicamente acessível)
-helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart --version 0.1.0
-
-# Deploy com configurações customizadas
-helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart \
-  --set image.repository=my-app \
-  --set image.tag=v1.0.0 \
-  --set replicaCount=3
-
-# Deploy sem Istio
-helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart \
-  --set istio.enabled=false
+helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart --version 2.0.0
 ```
 
-### Desenvolvimento Local
+## Exemplos
 
-```bash
-# Deploy básico (Istio habilitado por padrão)
-helm install my-app ./chart
-
-# Deploy com imagem customizada
-helm install my-app ./chart \
-  --set image.repository=my-app \
-  --set image.tag=v1.0.0 \
-  --set replicaCount=3
-```
-
-## Padrões de Uso Comuns
-
-### 1. Aplicação Web Simples
-
-```bash
-helm install web-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart \
-  --set image.repository=nginx \
-  --set service.port=80
-```
-
-### 2. API com Autenticação JWT
+### Aplicacao basica
 
 ```yaml
-# values.yaml
 image:
-  repository: minha-api
-  tag: v1.2.3
+  repository: my-app
+  tag: v1.0.0
 
-istio:
-  enabled: true
-  requestAuthentication:
-    enabled: true
-    jwtRules:
-      - issuer: "https://auth.empresa.com"
-        jwksUri: "https://auth.empresa.com/.well-known/jwks.json"
+replicaCount: 3
 ```
 
-### 3. Microsserviço com Autoscaling
+### API com cache e fila
 
 ```yaml
-# values.yaml
-istio:
-  virtualService:
-    pathBasedRouting:
-      enabled: true
-      servicePath: "user-service"
+global:
+  secretName: my-app-secrets
 
+infisicalSecret:
+  enabled: true
+  projectSlug: my-project
+  envSlug: prod
+
+valkey:
+  enabled: true
+
+rabbitmq:
+  enabled: true
+```
+
+Secrets necessarios no Infisical:
+- `REDIS_PASSWORD`
+- `RABBITMQ_PASSWORD`
+- `RABBITMQ_ERLANG_COOKIE`
+
+Variaveis injetadas automaticamente pelo chart:
+| Variavel | Valor | Descricao |
+|----------|-------|-----------|
+| `REDIS_HOST` | `<release>-valkey` | Hostname do Valkey |
+| `REDIS_PORT` | `6379` | Porta do Valkey |
+| `RABBITMQ_HOST` | `<release>-rabbitmq` | Hostname do RabbitMQ |
+| `RABBITMQ_PORT` | `5672` | Porta AMQP |
+| `RABBITMQ_USER` | `<release>` | Usuario (nome do release) |
+
+A aplicacao constroi a connection string usando as variaveis acima + senha do Infisical.
+
+### Autoscaling com KEDA
+
+```yaml
 scaledObject:
   enabled: true
+  minReplicaCount: 1
   maxReplicaCount: 20
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: http://prometheus.istio-system.svc.cluster.local:9090
-        threshold: "50"
-        query: sum(rate(istio_requests_total{destination_app="user-service"}[1m]))
+        serverAddress: http://prometheus:9090
+        threshold: "100"
+        query: sum(rate(istio_requests_total{destination_app="my-app"}[2m]))
 ```
 
-### 4. Atualização Automática com Argo Image Updater
+### VirtualService com headers e CORS
 
 ```yaml
-# values.yaml
-argoImageUpdater:
-  enabled: true
-  namespace: argocd
-  applicationRef:
-    namePattern: "minha-api-app"
-  images:
-    - alias: "api"
-      imageName: "ghcr.io/empresa/minha-api"
-      commonUpdateSettings:
-        updateStrategy: "digest"
-    - alias: "frontend"
-      imageName: "ghcr.io/empresa/meu-frontend"
-      commonUpdateSettings:
-        updateStrategy: "semver"
-        semverConstraint: "~1.2.0"
+istio:
+  virtualService:
+    timeout: "30s"
+    retries:
+      attempts: 3
+      perTryTimeout: "10s"
+    headers:
+      response:
+        set:
+          cache-control: "public, max-age=86400"
+    corsPolicy:
+      allowOrigins:
+        - exact: "https://example.com"
+      allowMethods:
+        - GET
+        - POST
+      allowCredentials: true
 ```
 
-## Configuração para Desenvolvedores
+### Autenticacao JWT
 
-Para contribuir e publicar novas versões:
-
-### Pré-requisitos
-
-- Google Cloud Project com Artifact Registry API habilitado
-- Service account com `roles/artifactregistry.admin`
-
-### Configuração do Repositório GitHub
-
-- **Secrets:** `GCP_SA_KEY` (chave da service account codificada em base64)
-- **Variáveis:** `PROJECT_ID` (ID do seu projeto GCP)
-
-### Publicação
-
-1. Atualize a versão em `chart/Chart.yaml`
-2. Faça push para main ou crie um GitHub release
-3. GitHub Actions publica automaticamente no Artifact Registry
-
-## Migração e Troubleshooting
-
-### Habilitando Istio em Deploy Existente
-
-1. Certifique-se de que o Istio está instalado no cluster
-2. Atualize: `helm upgrade my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart --set istio.enabled=true`
-
-### Problemas Comuns
-
-- **Sidecar não injetado**: Namespace precisa do label `istio-injection=enabled`
-- **KEDA não funciona**: Verifique se KEDA está instalado no cluster
-- **Tráfego bloqueado**: AuthorizationPolicy muito restritivo - comece com `rules: [{}]`
-
-### Comandos Úteis
-
-```bash
-# Verificar recursos Istio
-kubectl get virtualservices,destinationrules -A
-
-# Verificar autoscaling
-kubectl get scaledobjects,hpa -A
-
-# Status do service mesh
-istioctl proxy-status
+```yaml
+istio:
+  requestAuthentication:
+    enabled: true
+    jwtRules:
+      - issuer: "https://auth.example.com"
+        jwksUri: "https://auth.example.com/.well-known/jwks.json"
 ```
 
-## Configuração
+### Autorizacao com Cerbos/OPA
 
-Consulte `chart/values.yaml` para todas as opções de configuração com comentários detalhados em português.
+```yaml
+istio:
+  authorizationPolicy:
+    enabled: true
+    action: CUSTOM
+    provider:
+      name: cerbos-authz
+```
 
-## Roadmap
+### CronJobs
 
-### Funcionalidades Planejadas
+```yaml
+cronjobs:
+  cleanup:
+    enabled: true
+    schedule: "0 2 * * *"
+    command:
+      - /bin/sh
+      - -c
+      - "python manage.py cleanup"
 
-- **🚀 Argo Rollouts**: Integração com Argo Rollouts para deployments avançados (blue/green, canary, análise automatizada)
-- **📊 Observabilidade**: Templates para Grafana dashboards e alertas Prometheus
-- **💾 Persistência**: Suporte para volumes persistentes e StatefulSets
+  backup:
+    enabled: true
+    schedule: "0 5 * * *"
+    command:
+      - /bin/sh
+      - -c
+      - "pg_dump $DATABASE_URL > /backup/db.sql"
+    resources:
+      limits:
+        memory: 1Gi
+```
+
+### ServiceAccount (Workload Identity)
+
+```yaml
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: my-sa@project.iam.gserviceaccount.com
+```
+
+## Sync Waves
+
+Recursos sao aplicados em ordem pelo ArgoCD:
+
+| Wave | Recursos |
+|------|----------|
+| -1 | InfisicalSecret |
+| 0 | ServiceAccount |
+| 1 | Service, Deployment |
+| 2 | ScaledObject, HPA, PDB, CronJobs |
+| 3 | VirtualService, DestinationRule, AuthorizationPolicy, RequestAuthentication |
+
+## Configuracao
+
+Todas as opcoes estao documentadas em `chart/values.yaml`.
+
+### Principais opcoes
+
+| Parametro | Descricao | Padrao |
+|-----------|-----------|--------|
+| `replicaCount` | Numero de replicas | `1` |
+| `image.repository` | Repositorio da imagem | `nginx` |
+| `image.tag` | Tag da imagem | `appVersion` |
+| `service.port` | Porta do Service | `80` |
+| `service.containerPort` | Porta do container | `8080` |
+| `istio.enabled` | Habilita Istio | `true` |
+| `scaledObject.enabled` | Habilita KEDA | `true` |
+| `autoscaling.enabled` | Habilita HPA | `false` |
+| `podDisruptionBudget.enabled` | Habilita PDB | `true` |
+| `infisicalSecret.enabled` | Habilita Infisical | `false` |
+| `valkey.enabled` | Habilita cache Redis | `false` |
+| `rabbitmq.enabled` | Habilita fila | `false` |
 
 ## Requisitos
 
@@ -177,4 +185,23 @@ Consulte `chart/values.yaml` para todas as opções de configuração com coment
 - Helm 3.2.0+
 - Istio 1.14+ (opcional)
 - KEDA 2.0+ (opcional)
-- Argo Image Updater 0.12+ (opcional)
+- Infisical Operator (opcional)
+
+## Desenvolvimento
+
+```bash
+# Instalar dependencias
+helm dependency update chart/
+
+# Rodar testes
+helm unittest chart/
+
+# Instalar localmente
+helm install my-app ./chart
+```
+
+## Publicacao
+
+1. Atualize a versao em `chart/Chart.yaml`
+2. Push para main ou crie um release
+3. GitHub Actions publica automaticamente

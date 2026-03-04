@@ -76,3 +76,129 @@ tests:
       - contains:
           path: spec.gateways
           content: mesh
+
+  - it: should have sync-wave 3 annotation
+    set:
+      istio.enabled: true
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "3"
+
+  - it: should configure timeout when specified
+    set:
+      istio.enabled: true
+      istio.virtualService.timeout: "30s"
+    asserts:
+      - equal:
+          path: spec.http[0].timeout
+          value: "30s"
+
+  - it: should configure retries when specified
+    set:
+      istio.enabled: true
+      istio.virtualService.retries:
+        attempts: 3
+        perTryTimeout: "2s"
+        retryOn: "connect-failure,refused-stream"
+    asserts:
+      - equal:
+          path: spec.http[0].retries.attempts
+          value: 3
+      - equal:
+          path: spec.http[0].retries.perTryTimeout
+          value: "2s"
+      - equal:
+          path: spec.http[0].retries.retryOn
+          value: "connect-failure,refused-stream"
+
+  - it: should configure response headers when specified
+    set:
+      istio.enabled: true
+      istio.virtualService.headers:
+        response:
+          set:
+            cache-control: "public, max-age=86400"
+            x-custom-header: "value"
+    asserts:
+      - equal:
+          path: spec.http[0].headers.response.set.cache-control
+          value: "public, max-age=86400"
+      - equal:
+          path: spec.http[0].headers.response.set.x-custom-header
+          value: "value"
+
+  - it: should configure request headers when specified
+    set:
+      istio.enabled: true
+      istio.virtualService.headers:
+        request:
+          set:
+            x-api-version: "v1"
+          remove:
+            - x-internal-header
+    asserts:
+      - equal:
+          path: spec.http[0].headers.request.set.x-api-version
+          value: "v1"
+      - contains:
+          path: spec.http[0].headers.request.remove
+          content: x-internal-header
+
+  - it: should configure CORS policy when specified
+    set:
+      istio.enabled: true
+      istio.virtualService.corsPolicy:
+        allowOrigins:
+          - exact: "https://example.com"
+        allowMethods:
+          - GET
+          - POST
+        allowHeaders:
+          - Authorization
+          - Content-Type
+        maxAge: "24h"
+        allowCredentials: true
+    asserts:
+      - equal:
+          path: spec.http[0].corsPolicy.allowOrigins[0].exact
+          value: "https://example.com"
+      - contains:
+          path: spec.http[0].corsPolicy.allowMethods
+          content: GET
+      - contains:
+          path: spec.http[0].corsPolicy.allowMethods
+          content: POST
+      - contains:
+          path: spec.http[0].corsPolicy.allowHeaders
+          content: Authorization
+      - equal:
+          path: spec.http[0].corsPolicy.maxAge
+          value: "24h"
+      - equal:
+          path: spec.http[0].corsPolicy.allowCredentials
+          value: true
+
+  - it: should configure headers with path-based routing
+    set:
+      istio.enabled: true
+      istio.virtualService.pathBasedRouting.enabled: true
+      istio.virtualService.pathBasedRouting.servicePath: "api"
+      istio.virtualService.pathBasedRouting.headers:
+        response:
+          set:
+            x-route-header: "path-based"
+    asserts:
+      - equal:
+          path: spec.http[0].headers.response.set.x-route-header
+          value: "path-based"
+
+  - it: should configure timeout with path-based routing
+    set:
+      istio.enabled: true
+      istio.virtualService.pathBasedRouting.enabled: true
+      istio.virtualService.timeout: "60s"
+    asserts:
+      - equal:
+          path: spec.http[0].timeout
+          value: "60s"

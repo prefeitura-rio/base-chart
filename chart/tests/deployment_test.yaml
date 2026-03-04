@@ -14,7 +14,7 @@ tests:
           value: 1
       - equal:
           path: spec.template.spec.containers[0].image
-          value: "nginx:1.16.0"
+          value: "nginx:1.25"
 
   - it: should use custom image when specified
     set:
@@ -97,3 +97,93 @@ tests:
           content:
             configMapRef:
               name: app-config
+
+  - it: should have sync-wave 1 annotation
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "1"
+
+  - it: should inject REDIS_HOST and REDIS_PORT when valkey is enabled
+    set:
+      valkey:
+        enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_HOST
+            value: RELEASE-NAME-base-chart-valkey
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REDIS_PORT
+            value: "6379"
+
+  - it: should inject RABBITMQ_HOST, RABBITMQ_PORT and RABBITMQ_USER when rabbitmq is enabled
+    set:
+      rabbitmq:
+        enabled: true
+        service:
+          amqpPort: 5672
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RABBITMQ_HOST
+            value: RELEASE-NAME-base-chart-rabbitmq
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RABBITMQ_PORT
+            value: "5672"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RABBITMQ_USER
+            value: RELEASE-NAME
+
+  - it: should use infisicalSecret.secretName in envFrom when infisicalSecret is enabled
+    set:
+      infisicalSecret:
+        enabled: true
+        secretName: my-app-secrets
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: my-app-secrets
+
+  - it: should fallback to global.secretName when infisicalSecret.secretName is empty
+    set:
+      global:
+        secretName: global-app-secrets
+      infisicalSecret:
+        enabled: true
+        secretName: ""
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: global-app-secrets
+
+  - it: should use serviceAccountName from helper when serviceAccount is created
+    set:
+      serviceAccount:
+        create: true
+        name: custom-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: custom-sa
+
+  - it: should use default serviceAccountName when serviceAccount is not created
+    set:
+      serviceAccount:
+        create: false
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: default
