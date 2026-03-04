@@ -399,6 +399,34 @@ podDisruptionBudget:
   # minAvailable: "50%"
   # maxUnavailable: "30%"
 
+# Infisical Secret - sincronização de secrets do Infisical
+# Mais informações: https://infisical.com/docs/integrations/platforms/kubernetes/overview
+infisicalSecret:
+  # Habilita a criação do InfisicalSecret CRD (desabilitado por padrão)
+  enabled: false
+
+  # Nome do secret Kubernetes a ser criado (obrigatório quando enabled=true)
+  # Este nome deve corresponder ao secretRef usado em envFrom
+  # Exemplo: se envFrom.secretRef.name = "ato-api-secrets", use secretName: "ato-api-secrets"
+  secretName: ""
+
+  # Slug do projeto no Infisical (obrigatório quando enabled=true)
+  projectSlug: ""
+
+  # Slug do ambiente no Infisical (ex: dev, staging, prod) (obrigatório quando enabled=true)
+  envSlug: ""
+
+  # Caminho dos secrets no Infisical (padrão: "/")
+  secretsPath: "/"
+
+  # Busca secrets recursivamente nos subdiretórios (padrão: true)
+  recursive: true
+
+  # Política de criação do secret Kubernetes
+  # Orphan: mantém o secret mesmo se o InfisicalSecret for deletado
+  # Owner: deleta o secret quando o InfisicalSecret for deletado
+  creationPolicy: "Orphan"
+
 # Argo Image Updater - atualização automática de imagens Docker
 # Mais informações: https://argocd-image-updater.readthedocs.io/
 argoImageUpdater:

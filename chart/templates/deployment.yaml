@@ -50,9 +50,15 @@ spec:
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.envFrom }}
+          {{- if or .Values.envFrom .Values.infisicalSecret.enabled }}
           envFrom:
+            {{- if .Values.infisicalSecret.enabled }}
+            - secretRef:
+                name: {{ .Values.infisicalSecret.secretName }}
+            {{- end }}
+            {{- with .Values.envFrom }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           ports:
             - name: http
