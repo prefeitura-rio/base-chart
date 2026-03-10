@@ -202,3 +202,97 @@ tests:
       - equal:
           path: spec.http[0].timeout
           value: "60s"
+
+  # =============================================================================
+  # Auto-derived destination tests
+  # =============================================================================
+  - it: should auto-derive destination host when not specified in http routes
+    release:
+      namespace: myns
+    set:
+      istio.enabled: true
+      istio.virtualService.http:
+        - match:
+            - uri:
+                prefix: /
+          timeout: 30s
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: RELEASE-NAME-base-chart.myns.svc.cluster.local
+
+  - it: should auto-derive destination port when not specified in http routes
+    set:
+      istio.enabled: true
+      service.port: 8080
+      istio.virtualService.http:
+        - match:
+            - uri:
+                prefix: /
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.port.number
+          value: 8080
+
+  - it: should use explicit destination host when provided
+    set:
+      istio.enabled: true
+      istio.virtualService.http:
+        - match:
+            - uri:
+                prefix: /
+          route:
+            - destination:
+                host: custom-service.other-ns.svc.cluster.local
+                port:
+                  number: 9000
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: custom-service.other-ns.svc.cluster.local
+      - equal:
+          path: spec.http[0].route[0].destination.port.number
+          value: 9000
+
+  - it: should add default route when http routes have no route section
+    release:
+      namespace: test-ns
+    set:
+      istio.enabled: true
+      service.port: 80
+      istio.virtualService.http:
+        - match:
+            - uri:
+                prefix: /api
+          timeout: 60s
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: RELEASE-NAME-base-chart.test-ns.svc.cluster.local
+      - equal:
+          path: spec.http[0].route[0].destination.port.number
+          value: 80
+
+  # =============================================================================
+  # Default Gateway Tests
+  # =============================================================================
+  - it: should use default gateway when not specified
+    set:
+      istio.enabled: true
+    asserts:
+      - contains:
+          path: spec.gateways
+          content: istio-system/istio-gateway
+
+  - it: should use custom gateway when specified
+    set:
+      istio.enabled: true
+      istio.virtualService.gateways:
+        - my-namespace/my-gateway
+    asserts:
+      - contains:
+          path: spec.gateways
+          content: my-namespace/my-gateway
+      - notContains:
+          path: spec.gateways
+          content: istio-system/istio-gateway

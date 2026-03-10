@@ -2,6 +2,7 @@
 {{- $fullName := include "base-chart.fullname" . -}}
 {{- $servicePath := .Values.istio.virtualService.pathBasedRouting.servicePath | default (include "base-chart.name" .) -}}
 {{- $vs := .Values.istio.virtualService -}}
+{{- $defaultGateway := list "istio-system/istio-gateway" -}}
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -15,9 +16,12 @@ spec:
   hosts:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with $vs.gateways }}
+  {{- if $vs.gateways }}
   gateways:
-    {{- toYaml . | nindent 4 }}
+    {{- toYaml $vs.gateways | nindent 4 }}
+  {{- else }}
+  gateways:
+    {{- toYaml $defaultGateway | nindent 4 }}
   {{- end }}
   http:
   {{- if $vs.pathBasedRouting.enabled }}
@@ -151,11 +155,9 @@ spec:
       route:
         {{- range .route }}
         - destination:
-            host: {{ .destination.host | default $fullName }}
-            {{- if .destination.port }}
+            host: {{ .destination.host | default (printf "%s.%s.svc.cluster.local" $fullName $.Release.Namespace) }}
             port:
-              {{- toYaml .destination.port | nindent 14 }}
-            {{- end }}
+              number: {{ .destination.port.number | default $.Values.service.port }}
             {{- if .destination.subset }}
             subset: {{ .destination.subset }}
             {{- end }}
@@ -163,6 +165,12 @@ spec:
           weight: {{ .weight }}
           {{- end }}
         {{- end }}
+      {{- else }}
+      route:
+        - destination:
+            host: {{ $fullName }}.{{ $.Release.Namespace }}.svc.cluster.local
+            port:
+              number: {{ $.Values.service.port }}
       {{- end }}
       {{- if .fault }}
       fault:

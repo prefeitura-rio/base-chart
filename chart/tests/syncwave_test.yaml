@@ -45,15 +45,17 @@ tests:
     templates:
       - scaledobject.yaml
     set:
-      scaledObject:
+      autoscaling:
         enabled: true
-        triggers:
-          - type: prometheus
-            metadata:
-              serverAddress: http://prometheus:9090
-              metricName: test_metric
-              threshold: "100"
-              query: "sum(rate(test_total[2m]))"
+        keda:
+          enabled: true
+          triggers:
+            - type: prometheus
+              metadata:
+                serverAddress: http://prometheus:9090
+                metricName: test_metric
+                threshold: "100"
+                query: "sum(rate(test_total[2m]))"
     asserts:
       - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
@@ -68,6 +70,8 @@ tests:
         minReplicas: 1
         maxReplicas: 10
         targetCPUUtilizationPercentage: 80
+        keda:
+          enabled: false
     asserts:
       - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]

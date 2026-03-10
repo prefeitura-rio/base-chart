@@ -39,6 +39,7 @@ rabbitmq:
 ```
 
 Secrets necessarios no Infisical:
+
 - `REDIS_PASSWORD`
 - `RABBITMQ_PASSWORD`
 - `RABBITMQ_ERLANG_COOKIE`
@@ -150,13 +151,13 @@ serviceAccount:
 
 Recursos sao aplicados em ordem pelo ArgoCD:
 
-| Wave | Recursos |
-|------|----------|
-| -1 | InfisicalSecret |
-| 0 | ServiceAccount |
-| 1 | Service, Deployment |
-| 2 | ScaledObject, HPA, PDB, CronJobs |
-| 3 | VirtualService, DestinationRule, AuthorizationPolicy, RequestAuthentication |
+| Wave | Recursos                                                                    |
+| ---- | --------------------------------------------------------------------------- |
+| -1   | InfisicalSecret                                                             |
+| 0    | ServiceAccount                                                              |
+| 1    | Service, Deployment                                                         |
+| 2    | ScaledObject, HPA, PDB, CronJobs                                            |
+| 3    | VirtualService, DestinationRule, AuthorizationPolicy, RequestAuthentication |
 
 ## Configuracao
 
@@ -164,20 +165,20 @@ Todas as opcoes estao documentadas em `chart/values.yaml`.
 
 ### Principais opcoes
 
-| Parametro | Descricao | Padrao |
-|-----------|-----------|--------|
-| `replicaCount` | Numero de replicas | `1` |
-| `image.repository` | Repositorio da imagem | `nginx` |
-| `image.tag` | Tag da imagem | `appVersion` |
-| `service.port` | Porta do Service | `80` |
-| `service.containerPort` | Porta do container | `8080` |
-| `istio.enabled` | Habilita Istio | `true` |
-| `scaledObject.enabled` | Habilita KEDA | `true` |
-| `autoscaling.enabled` | Habilita HPA | `false` |
-| `podDisruptionBudget.enabled` | Habilita PDB | `true` |
-| `infisicalSecret.enabled` | Habilita Infisical | `false` |
-| `valkey.enabled` | Habilita cache Redis | `false` |
-| `rabbitmq.enabled` | Habilita fila | `false` |
+| Parametro                     | Descricao             | Padrao       |
+| ----------------------------- | --------------------- | ------------ |
+| `replicaCount`                | Numero de replicas    | `1`          |
+| `image.repository`            | Repositorio da imagem | `nginx`      |
+| `image.tag`                   | Tag da imagem         | `appVersion` |
+| `service.port`                | Porta do Service      | `80`         |
+| `service.containerPort`       | Porta do container    | `8080`       |
+| `istio.enabled`               | Habilita Istio        | `true`       |
+| `scaledObject.enabled`        | Habilita KEDA         | `true`       |
+| `autoscaling.enabled`         | Habilita HPA          | `false`      |
+| `podDisruptionBudget.enabled` | Habilita PDB          | `true`       |
+| `infisicalSecret.enabled`     | Habilita Infisical    | `false`      |
+| `valkey.enabled`              | Habilita cache Redis  | `false`      |
+| `rabbitmq.enabled`            | Habilita fila         | `false`      |
 
 ## Requisitos
 
@@ -205,3 +206,5 @@ helm install my-app ./chart
 1. Atualize a versao em `chart/Chart.yaml`
 2. Push para main ou crie um release
 3. GitHub Actions publica automaticamente
+
+TODO: alterar argo image updater

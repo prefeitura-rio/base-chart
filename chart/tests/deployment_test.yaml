@@ -3,6 +3,8 @@ templates:
   - deployment.yaml
 tests:
   - it: should render deployment with default values
+    set:
+      autoscaling.enabled: false
     asserts:
       - isKind:
           of: Deployment
@@ -187,3 +189,137 @@ tests:
       - equal:
           path: spec.template.spec.serviceAccountName
           value: default
+
+  # =============================================================================
+  # Health Check Tests (simplified healthCheck.path)
+  # =============================================================================
+  - it: should use healthCheck.path for both probes when set
+    set:
+      healthCheck:
+        path: /health
+      service:
+        containerPort: 8000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 8000
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 8000
+
+  - it: should use healthCheck.port when specified
+    set:
+      healthCheck:
+        path: /healthz
+        port: 9090
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: 9090
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: 9090
+
+  - it: should use separate probes when healthCheck.path is not set
+    set:
+      healthCheck:
+        path: ""
+      livenessProbe:
+        httpGet:
+          path: /alive
+      readinessProbe:
+        httpGet:
+          path: /ready
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /alive
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /ready
+
+  - it: should use default probes when healthCheck.path is empty
+    set:
+      healthCheck:
+        path: ""
+      livenessProbe:
+        httpGet:
+          path: /
+      readinessProbe:
+        httpGet:
+          path: /
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /
+
+  # =============================================================================
+  # Security Context Tests (production defaults)
+  # =============================================================================
+  - it: should have production security defaults for pod
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.seccompProfile.type
+          value: RuntimeDefault
+
+  - it: should have production security defaults for container
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: ALL
+
+  # =============================================================================
+  # Pod Anti-Affinity Tests
+  # =============================================================================
+  - it: should have soft pod anti-affinity by default
+    asserts:
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
+
+  - it: should use hostname topology key by default
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey
+          value: kubernetes.io/hostname
+
+  - it: should use hard anti-affinity when type is hard
+    set:
+      podAntiAffinity:
+        enabled: true
+        type: hard
+    asserts:
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution
+
+  - it: should use zone topology when specified
+    set:
+      podAntiAffinity:
+        enabled: true
+        topologyKey: topology.kubernetes.io/zone
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey
+          value: topology.kubernetes.io/zone
+
+  - it: should not have affinity when podAntiAffinity is disabled
+    set:
+      podAntiAffinity:
+        enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity

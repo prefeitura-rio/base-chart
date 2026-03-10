@@ -5,6 +5,9 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
     secrets.infisical.com/auto-reload: "true"
+    {{- if .Values.configMap.enabled }}
+    checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    {{- end }}
   labels:
     {{- include "base-chart.labels" . | nindent 4 }}
 spec:
@@ -47,6 +50,62 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.initContainers }}
+      initContainers:
+        {{- range .Values.initContainers }}
+        - name: {{ .name }}
+          image: {{ .image | default (printf "%s:%s" $.Values.image.repository ($.Values.image.tag | default $.Chart.AppVersion)) | quote }}
+          imagePullPolicy: {{ .imagePullPolicy | default $.Values.image.pullPolicy }}
+          {{- with .command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- /* Inherit envFrom from deployment or use custom */ -}}
+          {{- $initEnvFrom := .envFrom }}
+          {{- $inheritEnvFrom := not (hasKey . "envFrom") }}
+          {{- if or $inheritEnvFrom $.Values.infisicalSecret.enabled }}
+          envFrom:
+            {{- if and $inheritEnvFrom $.Values.infisicalSecret.enabled }}
+            - secretRef:
+                name: {{ $.Values.infisicalSecret.secretName | default $.Values.global.secretName }}
+            {{- end }}
+            {{- with $initEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- with .env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- /* Inherit volumeMounts from deployment or use custom */ -}}
+          {{- $initVolumeMounts := .volumeMounts }}
+          {{- $inheritVolumeMounts := not (hasKey . "volumeMounts") }}
+          {{- if or $initVolumeMounts (and $inheritVolumeMounts $.Values.volumeMounts) }}
+          volumeMounts:
+            {{- if $inheritVolumeMounts }}
+            {{- with $.Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- else }}
+            {{- with $initVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- with .resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           {{- with .Values.securityContext }}
@@ -55,11 +114,17 @@ spec:
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if or .Values.envFrom .Values.infisicalSecret.enabled }}
+          {{- $mountAsEnv := ternary .Values.configMap.mountAsEnv true (hasKey .Values.configMap "mountAsEnv") }}
+          {{- $configMapEnv := and .Values.configMap.enabled $mountAsEnv }}
+          {{- if or .Values.envFrom .Values.infisicalSecret.enabled $configMapEnv }}
           envFrom:
             {{- if .Values.infisicalSecret.enabled }}
             - secretRef:
                 name: {{ .Values.infisicalSecret.secretName | default .Values.global.secretName }}
+            {{- end }}
+            {{- if $configMapEnv }}
+            - configMapRef:
+                name: {{ include "base-chart.fullname" . }}
             {{- end }}
             {{- with .Values.envFrom }}
             {{- toYaml . | nindent 12 }}
@@ -89,6 +154,19 @@ spec:
             - name: http
               containerPort: {{ .Values.service.containerPort }}
               protocol: TCP
+          {{- /* Health probes - simplified healthCheck.path or advanced livenessProbe/readinessProbe */ -}}
+          {{- $healthPath := .Values.healthCheck.path -}}
+          {{- $healthPort := .Values.healthCheck.port | default .Values.service.containerPort -}}
+          {{- if $healthPath }}
+          livenessProbe:
+            httpGet:
+              path: {{ $healthPath }}
+              port: {{ $healthPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ $healthPath }}
+              port: {{ $healthPort }}
+          {{- else }}
           {{- if .Values.livenessProbe }}
           livenessProbe:
             {{- if .Values.livenessProbe.httpGet }}
@@ -109,15 +187,52 @@ spec:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
             {{- end }}
           {{- end }}
+          {{- end }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
+          {{- $configMapMount := and .Values.configMap.enabled .Values.configMap.mountPath }}
+          {{- if or .Values.volumeMounts $configMapMount }}
           volumeMounts:
+            {{- if $configMapMount }}
+            - name: configmap-volume
+              mountPath: {{ .Values.configMap.mountPath }}
+              readOnly: true
+            {{- end }}
+            {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
-      {{- with .Values.volumes }}
+      {{- $configMapMount := and .Values.configMap.enabled .Values.configMap.mountPath }}
+      {{- if or .Values.volumes $configMapMount }}
       volumes:
+        {{- if $configMapMount }}
+        - name: configmap-volume
+          configMap:
+            name: {{ include "base-chart.fullname" . }}
+            defaultMode: {{ .Values.configMap.defaultMode | default 0644 }}
+        {{- end }}
+        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          {{- if eq .Values.podAntiAffinity.type "hard" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "base-chart.selectorLabels" . | nindent 18 }}
+              topologyKey: {{ .Values.podAntiAffinity.topologyKey | default "kubernetes.io/hostname" }}
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "base-chart.selectorLabels" . | nindent 20 }}
+                topologyKey: {{ .Values.podAntiAffinity.topologyKey | default "kubernetes.io/hostname" }}
+          {{- end }}
       {{- end }}

@@ -87,25 +87,43 @@ podLabels: {}
 #   environment: production
 #   team: backend
 
+# Pod Anti-Affinity - distribui réplicas em diferentes nodes para HA
+# Mais informações: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+podAntiAffinity:
+  # Habilita anti-affinity (habilitado por padrão para HA)
+  enabled: true
+
+  # Tipo de anti-affinity:
+  # - "soft" (preferred): tenta distribuir, mas não falha se não conseguir
+  # - "hard" (required): falha o scheduling se não conseguir distribuir
+  type: "soft"
+
+  # Chave de topologia para distribuição:
+  # - kubernetes.io/hostname: distribui entre nodes (padrão)
+  # - topology.kubernetes.io/zone: distribui entre zonas de disponibilidade
+  topologyKey: "kubernetes.io/hostname"
+
 # Contexto de segurança para o pod inteiro
-podSecurityContext: {}
-# Exemplo:
+# Defaults de produção são aplicados automaticamente
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+# Adicione campos extras conforme necessário:
 # podSecurityContext:
 #   fsGroup: 2000
-#   runAsNonRoot: true
-#   seccompProfile:
-#     type: RuntimeDefault
 
 # Contexto de segurança para o container específico
-securityContext: {}
-# Exemplo:
+# Defaults de produção são aplicados automaticamente
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false # false por padrão pois muitas apps precisam escrever
+# Para máxima segurança, adicione:
 # securityContext:
-#   allowPrivilegeEscalation: false
-#   capabilities:
-#     drop:
-#     - ALL
 #   readOnlyRootFilesystem: true
-#   runAsNonRoot: true
 #   runAsUser: 1000
 
 # Configuração do Service do Kubernetes
@@ -136,51 +154,118 @@ resources: {}
 #     cpu: 250m      # 0.25 CPU cores garantidos
 #     memory: 256Mi   # 256 MiB de RAM garantidos
 
-# Probe de liveness - verifica se o container está funcionando
-# Se falhar, o Kubernetes reinicia o container
+# Health Check - configuração simplificada para probes
 # Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-# Probe de liveness - verifica se o container está funcionando
-# Se falhar, o Kubernetes reinicia o container
-# Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+#
+# Modo simplificado - defina apenas o path e ambos os probes usam o mesmo:
+#   healthCheck:
+#     path: /health
+#
+# O path é usado automaticamente para livenessProbe e readinessProbe.
+# A porta é derivada de service.containerPort.
+healthCheck:
+  # Path para health check (usado por liveness e readiness)
+  # Se definido, sobrescreve livenessProbe e readinessProbe
+  path: ""
+
+  # Porta opcional (padrão: service.containerPort)
+  # port: 8080
+
+# Probes avançados - use se precisar de configurações diferentes para cada probe
+# Se healthCheck.path estiver definido, estas configurações são ignoradas
 livenessProbe:
   httpGet:
-    path: / # Caminho para verificar (pode ser /health, /alive, etc.)
-    # port: 8080 # Porta é opcional - usa service.containerPort se omitida
+    path: /
+    # port: 8080  # Opcional - usa service.containerPort se omitida
 
-# Probe de readiness - verifica se o container está pronto para receber tráfego
-# Se falhar, remove o pod do service (não mata o container)
 readinessProbe:
   httpGet:
-    path: / # Caminho para verificar (pode ser /ready, /healthz, etc.)
-    # port: 8080 # Porta é opcional - usa service.containerPort se omitida
+    path: /
+    # port: 8080  # Opcional - usa service.containerPort se omitida
 
-# Exemplo para usar porta diferente para health checks:
-# livenessProbe:
-#   httpGet:
-#     path: /health
-#     port: 9090  # Porta específica para health endpoints
-# readinessProbe:
-#   httpGet:
-#     path: /ready
-#     port: 9090  # Porta específica para health endpoints
+# Exemplos avançados:
+# 1. Paths diferentes para cada probe:
+#    livenessProbe:
+#      httpGet:
+#        path: /alive
+#    readinessProbe:
+#      httpGet:
+#        path: /ready
+#
+# 2. Probe TCP (sem HTTP):
+#    livenessProbe:
+#      tcpSocket:
+#        port: 8080
 
-# Horizontal Pod Autoscaler - escalonamento automático baseado em CPU/memória
+# Autoscaling - escalonamento automático de réplicas
 # Mais informações: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+#
+# Suporta dois backends:
+# - KEDA (padrão): autoscaling baseado em métricas externas (Prometheus, RabbitMQ, etc.)
+# - HPA: autoscaling nativo do Kubernetes baseado em CPU/memória
+#
+# Exemplo mínimo com KEDA:
+#   autoscaling:
+#     enabled: true
+#     minReplicas: 1
+#     maxReplicas: 10
+#     keda:
+#       triggers:
+#         - type: prometheus
+#           metadata:
+#             serverAddress: http://prometheus:9090
+#             threshold: "100"
+#             # query é auto-gerada se omitida
 autoscaling:
-  # Habilita o HPA (desabilitado por padrão - use KEDA para funcionalidade avançada)
-  enabled: false
+  # Habilita autoscaling
+  enabled: true
 
-  # Número mínimo de réplicas
+  # Número mínimo de réplicas (compartilhado entre HPA e KEDA)
   minReplicas: 1
 
-  # Número máximo de réplicas
-  maxReplicas: 100
+  # Número máximo de réplicas (compartilhado entre HPA e KEDA)
+  maxReplicas: 10
 
-  # Porcentagem de uso de CPU para trigger do autoscaling
+  # Configurações específicas do HPA (usado quando keda.enabled=false)
   targetCPUUtilizationPercentage: 80
-
-  # Porcentagem de uso de memória para trigger (opcional)
   # targetMemoryUtilizationPercentage: 80
+
+  # KEDA - Kubernetes Event-driven Autoscaling
+  # Mais informações: https://keda.sh/docs/concepts/scaling-deployments/
+  keda:
+    # Usa KEDA ao invés de HPA (padrão: true)
+    enabled: true
+
+    # Intervalo entre verificações de métricas (segundos)
+    pollingInterval: 30
+
+    # Tempo de espera após última métrica antes de scale down (segundos)
+    cooldownPeriod: 300
+
+    # Triggers para autoscaling
+    # Smart defaults para Prometheus:
+    #   - serverAddress: http://prometheus-server.istio-system.svc.cluster.local:9090
+    #   - query: sum(rate(istio_requests_total{destination_app="<fullname>"}[2m]))
+    #   - threshold: "100"
+    #   - metricName: istio_requests_total
+    triggers: []
+    # Exemplo mínimo com Prometheus (todos os campos têm defaults):
+    # triggers:
+    # - type: prometheus
+    #   # Tudo é opcional! Apenas 'type: prometheus' é necessário
+    #
+    # Exemplo com valores customizados:
+    # triggers:
+    # - type: prometheus
+    #   metadata:
+    #     threshold: "50"  # Apenas sobrescreve o que precisar
+    #
+    # Exemplo com RabbitMQ:
+    # - type: rabbitmq
+    #   metadata:
+    #     host: rabbitmq.default.svc.cluster.local:5672
+    #     queueName: task-queue
+    #     queueLength: "10"
 
 # Volumes adicionais para serem montados no deployment
 volumes: []
@@ -211,30 +296,125 @@ envFrom: []
 # Variáveis de ambiente individuais
 env: []
 
+# Init Containers - containers que executam antes do container principal
+# Mais informações: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+#
+# Casos de uso comuns:
+# - Aguardar dependências (banco de dados, cache, etc.)
+# - Executar migrações de banco de dados
+# - Clonar repositórios ou baixar arquivos
+# - Configurar permissões em volumes
+#
+# Smart defaults:
+# - Se image não for especificada, usa a mesma do deployment principal
+# - Se imagePullPolicy não for especificado, usa o mesmo do deployment
+# - Herda envFrom do deployment (incluindo Infisical secrets)
+# - Herda volumeMounts do deployment
+initContainers: []
+# Exemplo - aguardar PostgreSQL:
+# initContainers:
+#   - name: wait-for-db
+#     command: ["sh", "-c", "until pg_isready -h $DB_HOST; do sleep 2; done"]
+#
+# Exemplo - rodar migrações:
+# initContainers:
+#   - name: migrations
+#     command: ["python", "manage.py", "migrate"]
+#
+# Exemplo - com imagem customizada:
+# initContainers:
+#   - name: download-assets
+#     image: curlimages/curl:latest
+#     command: ["curl", "-o", "/data/file.zip", "https://example.com/file.zip"]
+#     volumeMounts:
+#       - name: data
+#         mountPath: /data
+#
+# Exemplo completo:
+# initContainers:
+#   - name: init-db
+#     image: postgres:15  # opcional - usa imagem do deployment se omitido
+#     command: ["sh", "-c", "until pg_isready -h $DB_HOST -p 5432; do sleep 2; done"]
+#     env:
+#       - name: DB_HOST
+#         value: postgres
+#     resources:
+#       limits:
+#         cpu: 100m
+#         memory: 128Mi
+
+# ConfigMap - configurações da aplicação
+# Mais informações: https://kubernetes.io/docs/concepts/configuration/configmap/
+#
+# Modos de uso:
+# 1. Como variáveis de ambiente (mountAsEnv: true)
+# 2. Como arquivos montados (mountPath: "/etc/config")
+# 3. Ambos simultaneamente
+#
+# Exemplo mínimo - dados como env vars:
+#   configMap:
+#     enabled: true
+#     data:
+#       LOG_LEVEL: "info"
+#       API_TIMEOUT: "30"
+#
+# Exemplo com arquivo montado:
+#   configMap:
+#     enabled: true
+#     mountAsEnv: false
+#     mountPath: "/etc/myapp"
+#     data:
+#       config.json: |
+#         {"key": "value"}
+configMap:
+  # Habilita criação do ConfigMap (desabilitado por padrão)
+  enabled: false
+
+  # Dados do ConfigMap (chave: valor)
+  data: {}
+  # Exemplo:
+  # data:
+  #   LOG_LEVEL: "info"
+  #   DATABASE_POOL_SIZE: "10"
+  #   config.yaml: |
+  #     server:
+  #       port: 8080
+
+  # Monta como variáveis de ambiente (padrão: true)
+  # Quando true, cada chave do ConfigMap vira uma env var
+  mountAsEnv: true
+
+  # Caminho para montar como volume (opcional)
+  # Quando definido, cria um volume com os dados do ConfigMap
+  # Cada chave vira um arquivo no diretório especificado
+  mountPath: ""
+
+  # Permissões dos arquivos quando montado como volume (padrão: 0644)
+  defaultMode: 0644
+
 # Configuração completa do Istio para service mesh
 # Mais informações: https://istio.io/latest/docs/
+#
+# Defaults otimizados para produção:
+# - VirtualService com gateway istio-system/istio-gateway
+# - DestinationRule com connection pooling e outlier detection
+# - Sidecar com recursos adequados para a maioria das aplicações
 istio:
   # Habilita todas as funcionalidades do Istio (habilitado por padrão)
-  # Quando true: cria VirtualService e DestinationRule automaticamente
-  # Quando false: nenhum recurso Istio é criado
   enabled: true
 
   # Configuração do sidecar proxy do Istio
+  # Valores padrão otimizados - apenas sobrescreva se necessário
   sidecar:
-    # Reescrever probes HTTP da aplicação para funcionar com mTLS
+    # Reescrever probes HTTP para funcionar com mTLS (geralmente não necessário)
     rewriteAppHTTPProbers: false
 
-    # CPU reservada para o proxy Istio (formato Kubernetes)
+    # Recursos do proxy - valores padrão adequados para maioria das apps
+    # Apenas ajuste se tiver problemas de performance ou OOM
     proxyCPU: "100m"
-
-    # Limite máximo de CPU para o proxy Istio
     proxyCPULimit: "1000m"
-
-    # Memória reservada para o proxy Istio
-    proxyMemory: "1Gi"
-
-    # Limite máximo de memória para o proxy Istio
-    proxyMemoryLimit: "1536Mi"
+    proxyMemory: "128Mi" # Reduzido de 1Gi - suficiente para maioria das apps
+    proxyMemoryLimit: "256Mi" # Reduzido de 1536Mi
 
   # Configuração do VirtualService - roteamento de tráfego L7
   virtualService:
@@ -242,10 +422,11 @@ istio:
     enabled: true
 
     # Gateways aos quais este VirtualService se aplica
+    # Default: ["istio-system/istio-gateway"]
     gateways: []
-    # Exemplo:
+    # Para usar gateway customizado:
     # gateways:
-    # - istio-system/my-gateway
+    # - istio-system/my-custom-gateway
     # - mesh  # Para tráfego interno do mesh
 
     # Hosts (domínios) aos quais as regras se aplicam
@@ -253,7 +434,6 @@ istio:
     # Exemplo:
     # hosts:
     # - api.example.com
-    # - internal-service.mesh.local
 
     # Timeout global para todas as rotas (formato: 30s, 1m, etc.)
     # Mais informações: https://istio.io/latest/docs/reference/config/networking/virtual-service/#HTTPRoute
@@ -310,8 +490,21 @@ istio:
 
     # Regras HTTP customizadas (configuração avançada)
     # Quando definido, substitui o roteamento padrão
+    #
+    # Smart defaults para rotas:
+    # - destination.host: auto-deriva para <fullname>.<namespace>.svc.cluster.local
+    # - destination.port.number: auto-deriva para service.port
+    # Você só precisa especificar se quiser valores diferentes!
     http: []
-    # Exemplo com headers e timeout por rota:
+    # Exemplo simplificado (host e port são auto-derivados):
+    # http:
+    # - match:
+    #     - uri:
+    #         prefix: /
+    #   timeout: 120s
+    #   # route é opcional - se omitido, roteia para o próprio serviço
+    #
+    # Exemplo completo com headers:
     # http:
     # - name: "static-assets"
     #   match:
@@ -321,27 +514,7 @@ istio:
     #     response:
     #       set:
     #         cache-control: "public, max-age=86400, immutable"
-    #         vary: "Accept-Encoding"
-    #   route:
-    #     - destination:
-    #         host: my-service
-    #         port:
-    #           number: 80
-    # - name: "api"
-    #   match:
-    #     - uri:
-    #         prefix: "/api/"
-    #   timeout: "60s"
-    #   retries:
-    #     attempts: 3
-    #     perTryTimeout: "10s"
-    #   headers:
-    #     request:
-    #       set:
-    #         x-api-version: "v1"
-    #   route:
-    #     - destination:
-    #         host: my-service
+    #   # route omitido = usa defaults (host e port do serviço)
 
     # Roteamento baseado em caminho - padrão comum para APIs
     pathBasedRouting:
@@ -447,43 +620,6 @@ istio:
     #     tcp:
     #       maxConnections: 200
 
-# KEDA ScaledObject - autoscaling baseado em métricas externas
-# Mais informações: https://keda.sh/docs/concepts/scaling-deployments/
-scaledObject:
-  # Habilita KEDA ScaledObject (habilitado por padrão)
-  enabled: true
-
-  # Número mínimo de réplicas (pode ser 0 para scale-to-zero)
-  minReplicaCount: 1
-
-  # Número máximo de réplicas
-  maxReplicaCount: 10
-
-  # Intervalo entre verificações de métricas (segundos)
-  pollingInterval: 30
-
-  # Tempo de espera após última métrica antes de fazer scale down (segundos)
-  cooldownPeriod: 300
-
-  # Triggers para autoscaling - suporte a múltiplas fontes de métricas
-  triggers: []
-  # Exemplo com Prometheus:
-  # triggers:
-  # - type: prometheus
-  #   metadata:
-  #     serverAddress: http://prometheus-server.istio-system.svc.cluster.local:9090
-  #     metricName: istio_requests_per_second
-  #     threshold: "100"
-  #     query: sum(rate(istio_requests_total{destination_app="my-app"}[2m]))
-  #
-  # Exemplo com RabbitMQ:
-  # - type: rabbitmq
-  #   metadata:
-  #     protocol: amqp
-  #     host: rabbitmq.default.svc.cluster.local:5672
-  #     queueName: task-queue
-  #     queueLength: "10"
-
 # PodDisruptionBudget - garante disponibilidade durante atualizações e manutenções
 # Mais informações: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
 podDisruptionBudget:
@@ -531,12 +667,24 @@ infisicalSecret:
 
 # Argo Image Updater - atualização automática de imagens Docker
 # Mais informações: https://argocd-image-updater.readthedocs.io/
+#
+# Defaults inteligentes (quando enabled=true):
+#   - namespace: "argo-cd"
+#   - applicationRef.namePattern: usa o releaseName do helm
+#   - applicationRef.namespace: usa o namespace do release
+#   - images: usa image.repository e image.tag do deployment com alias do fullnameOverride/nameOverride
+#
+# Exemplo mínimo - apenas habilitar:
+#   argoImageUpdater:
+#     enabled: true
+#
+# Isso criará automaticamente um ImageUpdater que monitora a imagem do deployment
 argoImageUpdater:
   # Habilita o Argo Image Updater (desabilitado por padrão)
   enabled: false
 
-  # Namespace onde o Argo CD está instalado
-  namespace: argocd
+  # Namespace onde o Argo CD está instalado (padrão: "argo-cd")
+  namespace: ""
 
   # Anotações adicionais para o recurso ImageUpdater
   annotations: {}
@@ -545,6 +693,9 @@ argoImageUpdater:
   labels: {}
 
   # Referência à aplicação Argo CD
+  # Se não especificado, usa valores do release:
+  #   - namePattern: .Release.Name
+  #   - namespace: .Release.Namespace
   applicationRef:
     # Padrão do nome da aplicação (regex suportado)
     namePattern: ""
@@ -552,9 +703,20 @@ argoImageUpdater:
     # Namespace da aplicação Argo CD (opcional)
     namespace: ""
 
+  # Estratégia de atualização padrão para imagens derivadas automaticamente
+  # Opções: "digest", "semver", "latest"
+  updateStrategy: "digest"
+
+  # Constraint semver (apenas quando updateStrategy="semver")
+  semverConstraint: ""
+
   # Lista de imagens a serem monitoradas para atualizações
+  # Se vazio, usa automaticamente a imagem do deployment:
+  #   - alias: fullnameOverride ou nameOverride ou Release.Name
+  #   - imageName: image.repository:image.tag
+  #   - updateStrategy: argoImageUpdater.updateStrategy
   images: []
-  # Exemplo:
+  # Exemplo para sobrescrever ou adicionar imagens extras:
   # images:
   # - alias: "api"
   #   imageName: "ghcr.io/company/app-api"
@@ -562,20 +724,6 @@ argoImageUpdater:
   #   commonUpdateSettings:
   #     updateStrategy: "digest"  # ou "semver", "latest"
   #     semverConstraint: "^1.0.0"  # Apenas para strategy semver
-  #     platforms:
-  #       - linux/amd64
-  #       - linux/arm64
-  #     ignoreTags:
-  #       - "*-rc*"
-  #       - "*-beta*"
-  #     ignoreDigests:
-  #       - "sha256:abc123..."
-  #
-  # - alias: "frontend"
-  #   imageName: "ghcr.io/company/app-frontend"
-#   commonUpdateSettings:
-#     updateStrategy: "semver"
-#     semverConstraint: "~1.2.0"
 
 # CronJobs - tarefas agendadas
 # Mais informações: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/

@@ -1,4 +1,6 @@
-{{- if .Values.autoscaling.enabled }}
+{{- if and .Values.autoscaling.enabled (not .Values.autoscaling.keda.enabled) }}
+{{- $minReplicas := .Values.autoscaling.minReplicas | default 1 -}}
+{{- $maxReplicas := .Values.autoscaling.maxReplicas | default 10 -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -12,8 +14,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "base-chart.fullname" . }}
-  minReplicas: {{ .Values.autoscaling.minReplicas }}
-  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  minReplicas: {{ $minReplicas }}
+  maxReplicas: {{ $maxReplicas }}
   metrics:
     {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource

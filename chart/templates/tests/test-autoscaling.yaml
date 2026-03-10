@@ -1,4 +1,4 @@
-{{- if .Values.scaledObject.enabled }}
+{{- if and .Values.autoscaling.enabled .Values.autoscaling.keda.enabled }}
 apiVersion: v1
 kind: Pod
 metadata:
