@@ -673,6 +673,7 @@ infisicalSecret:
 #   - applicationRef.namePattern: usa o releaseName do helm
 #   - applicationRef.namespace: usa o namespace do release
 #   - images: usa image.repository e image.tag do deployment com alias do fullnameOverride/nameOverride
+#   - registrySecret: usa o primeiro imagePullSecret (imagePullSecrets[0].name)
 #
 # Exemplo mínimo - apenas habilitar:
 #   argoImageUpdater:
@@ -703,6 +704,10 @@ argoImageUpdater:
     # Namespace da aplicação Argo CD (opcional)
     namespace: ""
 
+  # Secret do registry para autenticação
+  # Se não especificado, usa automaticamente imagePullSecrets[0].name
+  registrySecret: ""
+
   # Estratégia de atualização padrão para imagens derivadas automaticamente
   # Opções: "digest", "semver", "latest"
   updateStrategy: "digest"
@@ -714,13 +719,14 @@ argoImageUpdater:
   # Se vazio, usa automaticamente a imagem do deployment:
   #   - alias: fullnameOverride ou nameOverride ou Release.Name
   #   - imageName: image.repository:image.tag
+  #   - registrySecret: imagePullSecrets[0].name (se existir)
   #   - updateStrategy: argoImageUpdater.updateStrategy
   images: []
   # Exemplo para sobrescrever ou adicionar imagens extras:
   # images:
   # - alias: "api"
   #   imageName: "ghcr.io/company/app-api"
-  #   registrySecret: "ghcr-credentials"  # Opcional
+  #   registrySecret: "ghcr-credentials"  # Opcional - usa imagePullSecrets[0].name se omitido
   #   commonUpdateSettings:
   #     updateStrategy: "digest"  # ou "semver", "latest"
   #     semverConstraint: "^1.0.0"  # Apenas para strategy semver
