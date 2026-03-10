@@ -1,11 +1,21 @@
 # Base Chart
 
-Helm chart para deployments Kubernetes com Istio, autoscaling e Infisical.
+Helm chart for Kubernetes deployments with smart defaults, Istio service mesh, KEDA autoscaling, and Infisical secrets management.
 
-## Instalacao
+## Features
+
+- **Smart Defaults**: Minimal configuration needed, auto-derives common values
+- **Unified Autoscaling**: Merged HPA/KEDA configuration
+- **ConfigMap Support**: Mount as environment variables or files
+- **Init Containers**: With automatic secret/volume inheritance
+- **Istio Integration**: Auto-derived VirtualService destinations
+- **Production Security**: Enabled by default (runAsNonRoot, seccomp, drop ALL)
+- **ArgoCD Ready**: Sync waves for proper resource ordering
+
+## Installation
 
 ```bash
-helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart --version 2.0.0
+helm install my-app oci://us-west1-docker.pkg.dev/rj-iplanrio-dia/charts/base-chart --version 2.2.1
 ```
 
 ## Exemplos
@@ -20,55 +30,74 @@ image:
 replicaCount: 3
 ```
 
-### API com cache e fila
+### API with cache and queue
 
 ```yaml
-global:
-  secretName: my-app-secrets
-
+# Centralized secret configuration
 infisicalSecret:
   enabled: true
+  secretName: "my-app-secrets"  # ✅ Define once
   projectSlug: my-project
   envSlug: prod
 
+# Valkey (Redis) cache
 valkey:
   enabled: true
+  auth:
+    enabled: true
+    existingSecret: "my-app-secrets"  # ⚠️ Must match infisicalSecret.secretName
+    existingSecretPasswordKey: "REDIS_PASSWORD"
 
+# RabbitMQ queue
 rabbitmq:
   enabled: true
+  auth:
+    enabled: true
+    existingSecret: "my-app-secrets"  # ⚠️ Must match infisicalSecret.secretName
+    existingPasswordKey: "RABBITMQ_PASSWORD"
+    existingErlangCookieKey: "RABBITMQ_ERLANG_COOKIE"
 ```
 
-Secrets necessarios no Infisical:
+**Why the repetition?** Helm subcharts cannot automatically inherit parent values. You must explicitly set `existingSecret` to match `infisicalSecret.secretName`. This is a Helm limitation, not a chart bug.
 
+**Required secrets in Infisical:**
 - `REDIS_PASSWORD`
 - `RABBITMQ_PASSWORD`
 - `RABBITMQ_ERLANG_COOKIE`
 
-Variaveis injetadas automaticamente pelo chart:
-| Variavel | Valor | Descricao |
-|----------|-------|-----------|
-| `REDIS_HOST` | `<release>-valkey` | Hostname do Valkey |
-| `REDIS_PORT` | `6379` | Porta do Valkey |
-| `RABBITMQ_HOST` | `<release>-rabbitmq` | Hostname do RabbitMQ |
-| `RABBITMQ_PORT` | `5672` | Porta AMQP |
-| `RABBITMQ_USER` | `<release>` | Usuario (nome do release) |
+**Auto-injected environment variables:**
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `REDIS_HOST` | `<release>-valkey` | Valkey hostname |
+| `REDIS_PORT` | `6379` | Valkey port |
+| `RABBITMQ_HOST` | `<release>-rabbitmq` | RabbitMQ hostname |
+| `RABBITMQ_PORT` | `5672` | AMQP port |
+| `RABBITMQ_USER` | `<release>` | Username (release name) |
 
-A aplicacao constroi a connection string usando as variaveis acima + senha do Infisical.
+Your application builds connection strings using these variables + passwords from Infisical.
 
-### Autoscaling com KEDA
+### Autoscaling with KEDA (v2.2+)
 
 ```yaml
-scaledObject:
-  enabled: true
-  minReplicaCount: 1
-  maxReplicaCount: 20
-  triggers:
-    - type: prometheus
-      metadata:
-        serverAddress: http://prometheus:9090
-        threshold: "100"
-        query: sum(rate(istio_requests_total{destination_app="my-app"}[2m]))
+# Unified autoscaling configuration
+autoscaling:
+  minReplicas: 1
+  maxReplicas: 20
+  keda:
+    enabled: true  # Default when autoscaling configured
+    triggers:
+      - type: prometheus
+        metadata:
+          # Smart defaults - only specify what's different
+          threshold: "100"
+          query: sum(rate(istio_requests_total{destination_app="my-app"}[2m]))
+          # serverAddress auto-defaults to prometheus-server.istio-system
 ```
+
+**Smart defaults for Prometheus:**
+- `serverAddress`: `http://prometheus-server.istio-system.svc.cluster.local:9090`
+- `metricName`: `istio_requests_total`
+- `threshold`: `"100"`
 
 ### VirtualService com headers e CORS
 
@@ -201,10 +230,65 @@ helm unittest chart/
 helm install my-app ./chart
 ```
 
-## Publicacao
+## v2.2+ New Features
 
-1. Atualize a versao em `chart/Chart.yaml`
-2. Push para main ou crie um release
-3. GitHub Actions publica automaticamente
+### ConfigMap Support
+```yaml
+configMap:
+  enabled: true
+  data:
+    LOG_LEVEL: "info"
+    API_TIMEOUT: "30"
+  # Mount as env vars (default) or as files via mountPath
+```
 
-TODO: alterar argo image updater
+### Init Containers
+```yaml
+initContainers:
+  - name: run-migrations
+    command: ["python", "manage.py", "migrate"]
+    # Automatically inherits image, secrets, volumes from main deployment
+```
+
+### Simplified Health Checks
+```yaml
+healthCheck:
+  path: /health  # Applied to both liveness and readiness probes
+```
+
+### ArgoCD Image Updater (Smart Defaults)
+```yaml
+argoImageUpdater:
+  enabled: true
+  updateStrategy: "digest"
+  # Auto-derives: namespace, applicationRef, images, registrySecret from imagePullSecrets
+```
+
+## Secret Management Pattern
+
+**Single Source of Truth: `infisicalSecret.secretName`**
+
+1. Define secret name once in `infisicalSecret.secretName`
+2. Reference it explicitly in subcharts (valkey, rabbitmq)
+3. Deployment automatically uses it in `envFrom`
+
+```yaml
+infisicalSecret:
+  secretName: "my-app-secrets"  # ← Define ONCE
+
+valkey:
+  auth:
+    existingSecret: "my-app-secrets"  # ← Repeat (Helm limitation)
+
+rabbitmq:
+  auth:
+    existingSecret: "my-app-secrets"  # ← Repeat (Helm limitation)
+```
+
+This repetition is unavoidable due to how Helm subcharts work, but keeps configuration explicit and debuggable.
+
+## Publication
+
+1. Update version in `chart/Chart.yaml`
+2. Push to main or create a release
+3. GitHub Actions publishes automatically

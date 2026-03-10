@@ -1,21 +1,22 @@
-# Base Chart v2.0 - Valores padrao
-#
-# Novidades v2.0:
-# - global.secretName: fonte unica para nome do secret (usado por Infisical, Valkey, RabbitMQ)
-# - serviceAccount: suporte a Workload Identity (GCP) e IRSA (AWS)
-# - cronjobs: multiplos jobs agendados com heranca do deployment
-# - istio.virtualService: timeout, retries, headers, CORS
-# - istio.authorizationPolicy.provider: suporte a Cerbos/OPA
-# - valkey/rabbitmq: subcharts com integracao Infisical
-#
-# Sync Waves (ordem de aplicacao pelo ArgoCD):
-# -1: InfisicalSecret | 0: ServiceAccount | 1: Service, Deployment
-# 2: ScaledObject, HPA, PDB, CronJobs | 3: Recursos Istio
+# Base Chart - Valores Padrão
+# Documentação completa: https://github.com/prefeitura-rio/base-chart
 
-# Nome do secret Kubernetes (usado por todos os componentes)
-# Defina aqui e sera usado por: infisicalSecret, valkey, rabbitmq
-global:
-  secretName: ""
+# Valores globais - compartilhados entre parent e subcharts
+# Referência: https://helm.sh/docs/chart_template_guide/subcharts_and_globals/
+#
+# Subcharts (valkey, rabbitmq) suportam apenas:
+#   - global.imageRegistry: sobrescrever registry padrão (docker.io)
+#   - global.imagePullSecrets: secrets para imagens privadas
+#
+# Exemplo de uso com registry privado:
+#   global:
+#     imageRegistry: "my-registry.com"
+#     imagePullSecrets:
+#       - name: my-registry-secret
+#
+# IMPORTANTE: Subcharts NÃO suportam global.secretName ou global.existingSecret
+# Você deve configurar explicitamente auth.existingSecret em cada subchart
+global: {}
 
 # Define a quantidade de réplicas do deployment
 # Mais informações: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
@@ -797,15 +798,30 @@ cronjobs: {}
 # Connection string format (built by application):
 #   redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/0
 #
-# Note: Redis uses password-only authentication (no username required)
+# CONFIGURAÇÃO: Use o mesmo valor de infisicalSecret.secretName
+# 
+# Exemplo (RECOMENDADO - centralizado):
+#   infisicalSecret:
+#     enabled: true
+#     secretName: "my-app-secrets"  # ✅ Defina UMA VEZ aqui
+#   
+#   valkey:
+#     enabled: true
+#     auth:
+#       enabled: true
+#       existingSecret: "my-app-secrets"  # ⚠️ Repita o mesmo valor (limitação Helm)
+#       existingSecretPasswordKey: "REDIS_PASSWORD"
+#
+# Por quê a repetição?
+#   - Subcharts (valkey, rabbitmq) não conseguem ler valores do parent chart
+#   - É uma limitação fundamental do Helm
+#   - A repetição é mínima (uma linha) e torna o config explícito
+#
+# Se você não tiver REDIS_PASSWORD no Infisical, use auth.enabled: false
 valkey:
   enabled: false
   architecture: standalone
   replicaCount: 1
-  auth:
-    enabled: true
-    existingSecret: "{{ .Values.global.secretName }}"
-    existingSecretPasswordKey: "REDIS_PASSWORD"
   persistence:
     enabled: true
     size: 8Gi
@@ -820,15 +836,23 @@ valkey:
 #
 # Connection string format (built by application):
 #   amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+#
+# CONFIGURAÇÃO OBRIGATÓRIA quando usar com Infisical:
+#   rabbitmq:
+#     enabled: true
+#     auth:
+#       enabled: true
+#       existingSecret: "your-infisical-secret-name"  # DEVE coincidir com infisicalSecret.secretName
+#       existingPasswordKey: "RABBITMQ_PASSWORD"       # Nome da chave no secret do Infisical
+#       existingErlangCookieKey: "RABBITMQ_ERLANG_COOKIE"
+#
+# IMPORTANTE: Não é possível auto-preencher auth.existingSecret com templates
+# porque subcharts Helm recebem valores diretamente sem avaliação de templates.
+# Você DEVE configurar explicitamente para que o subchart encontre o secret.
+# Se você não tiver essas chaves no Infisical, use auth.enabled: false
 rabbitmq:
   enabled: false
   replicaCount: 1
-  auth:
-    enabled: true
-    username: "{{ .Release.Name }}"
-    existingSecret: "{{ .Values.global.secretName }}"
-    existingPasswordKey: "RABBITMQ_PASSWORD"
-    existingErlangCookieKey: "RABBITMQ_ERLANG_COOKIE"
   persistence:
     enabled: true
     size: 8Gi

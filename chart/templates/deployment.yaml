@@ -75,7 +75,7 @@ spec:
           envFrom:
             {{- if and $inheritEnvFrom $.Values.infisicalSecret.enabled }}
             - secretRef:
-                name: {{ $.Values.infisicalSecret.secretName | default $.Values.global.secretName }}
+                name: {{ $.Values.infisicalSecret.secretName }}
             {{- end }}
             {{- with $initEnvFrom }}
             {{- toYaml . | nindent 12 }}
@@ -120,7 +120,7 @@ spec:
           envFrom:
             {{- if .Values.infisicalSecret.enabled }}
             - secretRef:
-                name: {{ .Values.infisicalSecret.secretName | default .Values.global.secretName }}
+                name: {{ .Values.infisicalSecret.secretName }}
             {{- end }}
             {{- if $configMapEnv }}
             - configMapRef:
