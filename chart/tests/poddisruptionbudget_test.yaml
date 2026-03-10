@@ -10,7 +10,7 @@ tests:
           of: PodDisruptionBudget
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-base-chart
+          value: RELEASE-NAME
 
   - it: should not render when disabled
     set:

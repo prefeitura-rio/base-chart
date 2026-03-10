@@ -137,13 +137,13 @@ spec:
             {{- end }}
             {{- if .Values.valkey.enabled }}
             - name: REDIS_HOST
-              value: {{ include "base-chart.fullname" . }}-valkey
+              value: {{ .Release.Name }}-valkey
             - name: REDIS_PORT
               value: "6379"
             {{- end }}
             {{- if .Values.rabbitmq.enabled }}
             - name: RABBITMQ_HOST
-              value: {{ include "base-chart.fullname" . }}-rabbitmq
+              value: {{ .Release.Name }}-rabbitmq
             - name: RABBITMQ_PORT
               value: {{ .Values.rabbitmq.service.amqpPort | quote }}
             - name: RABBITMQ_USER

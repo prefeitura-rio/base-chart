@@ -87,9 +87,25 @@ spec:
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
               {{- end }}
-              {{- with $job.env }}
+              {{- if or $job.env $.Values.valkey.enabled $.Values.rabbitmq.enabled }}
               env:
+                {{- with $job.env }}
                 {{- toYaml . | nindent 16 }}
+                {{- end }}
+                {{- if $.Values.valkey.enabled }}
+                - name: REDIS_HOST
+                  value: {{ $.Release.Name }}-valkey
+                - name: REDIS_PORT
+                  value: "6379"
+                {{- end }}
+                {{- if $.Values.rabbitmq.enabled }}
+                - name: RABBITMQ_HOST
+                  value: {{ $.Release.Name }}-rabbitmq
+                - name: RABBITMQ_PORT
+                  value: {{ $.Values.rabbitmq.service.amqpPort | quote }}
+                - name: RABBITMQ_USER
+                  value: {{ $.Release.Name }}
+                {{- end }}
               {{- end }}
               {{- with $job.resources | default $.Values.resources }}
               resources:

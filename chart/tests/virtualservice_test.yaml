@@ -17,7 +17,7 @@ tests:
           of: VirtualService
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-base-chart
+          value: RELEASE-NAME
 
   - it: should configure path-based routing when enabled
     set:
@@ -47,7 +47,7 @@ tests:
           value: 20
       - equal:
           path: spec.http[0].route[1].destination.host
-          value: RELEASE-NAME-base-chart-canary
+          value: RELEASE-NAME-canary
 
   - it: should configure custom hosts when specified
     set:
@@ -219,7 +219,7 @@ tests:
     asserts:
       - equal:
           path: spec.http[0].route[0].destination.host
-          value: RELEASE-NAME-base-chart.myns.svc.cluster.local
+          value: RELEASE-NAME.myns.svc.cluster.local
 
   - it: should auto-derive destination port when not specified in http routes
     set:
@@ -268,7 +268,7 @@ tests:
     asserts:
       - equal:
           path: spec.http[0].route[0].destination.host
-          value: RELEASE-NAME-base-chart.test-ns.svc.cluster.local
+          value: RELEASE-NAME.test-ns.svc.cluster.local
       - equal:
           path: spec.http[0].route[0].destination.port.number
           value: 80

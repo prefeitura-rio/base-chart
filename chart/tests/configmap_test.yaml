@@ -21,7 +21,7 @@ tests:
           of: ConfigMap
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-base-chart
+          value: RELEASE-NAME
 
   - it: should include correct labels
     set:
@@ -159,7 +159,7 @@ tests:
           path: spec.template.spec.containers[0].envFrom
           content:
             configMapRef:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
 
   - it: should add configMapRef when mountAsEnv is explicitly true
     set:
@@ -174,7 +174,7 @@ tests:
           path: spec.template.spec.containers[0].envFrom
           content:
             configMapRef:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
 
   - it: should not add configMapRef when mountAsEnv is false
     set:
@@ -190,7 +190,7 @@ tests:
           path: spec.template.spec.containers[0].envFrom
           content:
             configMapRef:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
 
   - it: should have both infisical secret and configmap in envFrom
     set:
@@ -213,7 +213,7 @@ tests:
           path: spec.template.spec.containers[0].envFrom
           content:
             configMapRef:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
 
   # =============================================================================
   # Deployment Volume Mount Tests
@@ -248,7 +248,7 @@ tests:
           content:
             name: configmap-volume
             configMap:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
               defaultMode: 420
 
   - it: should use custom defaultMode for volume
@@ -266,7 +266,7 @@ tests:
           content:
             name: configmap-volume
             configMap:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
               defaultMode: 493
 
   - it: should not add volume when mountPath is not specified
@@ -298,7 +298,7 @@ tests:
           path: spec.template.spec.containers[0].envFrom
           content:
             configMapRef:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
       - template: deployment.yaml
         contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -351,7 +351,7 @@ tests:
           content:
             name: configmap-volume
             configMap:
-              name: RELEASE-NAME-base-chart
+              name: RELEASE-NAME
               defaultMode: 420
       - template: deployment.yaml
         contains:

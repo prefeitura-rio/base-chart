@@ -32,7 +32,7 @@ tests:
           of: CronJob
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-base-chart-cleanup
+          value: RELEASE-NAME-cleanup
       - equal:
           path: spec.schedule
           value: "0 2 * * *"

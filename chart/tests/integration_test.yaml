@@ -161,7 +161,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: RABBITMQ_HOST
-            value: worker-rabbitmq
+            value: RELEASE-NAME-rabbitmq
       - template: deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env
@@ -200,7 +200,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: REDIS_HOST
-            value: api-valkey
+            value: RELEASE-NAME-valkey
       - template: deployment.yaml
         contains:
           path: spec.template.spec.containers[0].env

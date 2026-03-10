@@ -92,7 +92,7 @@ tests:
     asserts:
       - equal:
           path: spec.applicationRefs[0].images[0].alias
-          value: RELEASE-NAME-base-chart
+          value: RELEASE-NAME
       - equal:
           path: spec.applicationRefs[0].images[0].imageName
           value: "ghcr.io/myorg/myapp:v1.2.3"
@@ -270,7 +270,7 @@ tests:
     asserts:
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-base-chart
+          value: RELEASE-NAME
 
   - it: should use fullnameOverride for metadata name when set
     set:

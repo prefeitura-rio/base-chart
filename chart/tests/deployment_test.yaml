@@ -10,7 +10,7 @@ tests:
           of: Deployment
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-base-chart
+          value: RELEASE-NAME
       - equal:
           path: spec.replicas
           value: 1
@@ -115,7 +115,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: REDIS_HOST
-            value: RELEASE-NAME-base-chart-valkey
+            value: RELEASE-NAME-valkey
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -133,7 +133,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: RABBITMQ_HOST
-            value: RELEASE-NAME-base-chart-rabbitmq
+            value: RELEASE-NAME-rabbitmq
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -157,19 +157,19 @@ tests:
             secretRef:
               name: my-app-secrets
 
-  - it: should fallback to global.secretName when infisicalSecret.secretName is empty
+  - it: should use infisicalSecret.secretName in envFrom when infisicalSecret is enabled
     set:
-      global:
-        secretName: global-app-secrets
       infisicalSecret:
         enabled: true
-        secretName: ""
+        secretName: "my-app-secrets"
+        projectSlug: "my-project"
+        envSlug: "prod"
     asserts:
       - contains:
           path: spec.template.spec.containers[0].envFrom
           content:
             secretRef:
-              name: global-app-secrets
+              name: my-app-secrets
 
   - it: should use serviceAccountName from helper when serviceAccount is created
     set:

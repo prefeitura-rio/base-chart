@@ -344,4 +344,4 @@ tests:
           path: spec.http[0].route
       - equal:
           path: spec.http[0].route[0].destination.host
-          value: RELEASE-NAME-base-chart.test-ns.svc.cluster.local
+          value: RELEASE-NAME.test-ns.svc.cluster.local
