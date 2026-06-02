@@ -34,8 +34,7 @@ image:
   # Never: nunca baixa, usa apenas imagem local
   pullPolicy: IfNotPresent
 
-  # Tag da imagem (sobrescreve o appVersion do Chart.yaml se definido)
-  # Deixe vazio para usar o appVersion do Chart.yaml
+  # Tag da imagem. Deixe vazio para usar "latest" como padrão
   tag: ""
 
 # Secrets para autenticação em repositórios privados de imagens
