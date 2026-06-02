@@ -54,7 +54,7 @@ spec:
       initContainers:
         {{- range .Values.initContainers }}
         - name: {{ .name }}
-          image: {{ .image | default (printf "%s:%s" $.Values.image.repository ($.Values.image.tag | default $.Chart.AppVersion)) | quote }}
+          image: {{ .image | default (printf "%s:%s" $.Values.image.repository ($.Values.image.tag | default "latest")) | quote }}
           imagePullPolicy: {{ .imagePullPolicy | default $.Values.image.pullPolicy }}
           {{- with .command }}
           command:
@@ -112,7 +112,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- $mountAsEnv := ternary .Values.configMap.mountAsEnv true (hasKey .Values.configMap "mountAsEnv") }}
           {{- $configMapEnv := and .Values.configMap.enabled $mountAsEnv }}
