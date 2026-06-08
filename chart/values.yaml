@@ -665,6 +665,18 @@ infisicalSecret:
   # Owner: deleta o secret quando o InfisicalSecret for deletado
   creationPolicy: "Orphan"
 
+  kubernetesAuth:
+    enabled: false
+    identityId: ""
+    serviceAccountRef:
+      name: ""
+      namespace: "default"
+
+  universalAuth:
+    credentialsRef:
+      secretName: "infisical-universal-auth"
+      secretNamespace: "infisical"
+
 # Argo Image Updater - atualização automática de imagens Docker
 # Mais informações: https://argocd-image-updater.readthedocs.io/
 #
