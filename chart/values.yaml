@@ -665,6 +665,8 @@ infisicalSecret:
   # Owner: deleta o secret quando o InfisicalSecret for deletado
   creationPolicy: "Orphan"
 
+  managedSecretNamespace: ""
+
   kubernetesAuth:
     enabled: false
     identityId: ""
