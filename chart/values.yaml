@@ -173,15 +173,9 @@ healthCheck:
 
 # Probes avançados - use se precisar de configurações diferentes para cada probe
 # Se healthCheck.path estiver definido, estas configurações são ignoradas
-livenessProbe:
-  httpGet:
-    path: /
-    # port: 8080  # Opcional - usa service.containerPort se omitida
+livenessProbe: {}
 
-readinessProbe:
-  httpGet:
-    path: /
-    # port: 8080  # Opcional - usa service.containerPort se omitida
+readinessProbe: {}
 
 # Exemplos avançados:
 # 1. Paths diferentes para cada probe:
