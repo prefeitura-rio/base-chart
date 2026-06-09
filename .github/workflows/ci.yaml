@@ -88,6 +88,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
           tag_prefix: v
+          custom_release_rules: "feat:patch,fix:patch,chore:patch,refactor:patch,perf:patch,docs:patch,test:patch,ci:patch"
 
       - name: Inject version into Chart.yaml
         run: yq e '.version = strenv(VERSION)' -i ${{ env.CHART_DIR }}/Chart.yaml
