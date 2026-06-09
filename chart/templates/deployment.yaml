@@ -41,10 +41,8 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "base-chart.imagePullSecrets" . | nindent 8 }}
       serviceAccountName: {{ include "base-chart.serviceAccountName" . }}
       {{- with .Values.podSecurityContext }}
       securityContext:
@@ -71,7 +69,7 @@ spec:
           {{- /* Inherit envFrom from deployment or use custom */ -}}
           {{- $initEnvFrom := .envFrom }}
           {{- $inheritEnvFrom := not (hasKey . "envFrom") }}
-          {{- if or $inheritEnvFrom $.Values.infisicalSecret.enabled }}
+          {{- if or $initEnvFrom (and $inheritEnvFrom $.Values.infisicalSecret.enabled) }}
           envFrom:
             {{- if and $inheritEnvFrom $.Values.infisicalSecret.enabled }}
             - secretRef:

@@ -2,9 +2,6 @@ suite: test configmap
 templates:
   - configmap.yaml
 tests:
-  # =============================================================================
-  # Basic ConfigMap Tests
-  # =============================================================================
   - it: should not render ConfigMap when disabled (default)
     asserts:
       - hasDocuments:
@@ -47,9 +44,6 @@ tests:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "-1"
 
-  # =============================================================================
-  # Data Tests
-  # =============================================================================
   - it: should include string data values
     set:
       configMap:
@@ -111,9 +105,6 @@ tests:
           path: data.PRODUCTION
           value: "false"
 
-  # =============================================================================
-  # Name Override Tests
-  # =============================================================================
   - it: should use fullnameOverride when specified
     set:
       fullnameOverride: "my-custom-app"
@@ -144,9 +135,6 @@ templates:
   - deployment.yaml
   - configmap.yaml
 tests:
-  # =============================================================================
-  # Deployment envFrom Tests
-  # =============================================================================
   - it: should add configMapRef to envFrom when mountAsEnv is true (default)
     set:
       configMap:
@@ -215,9 +203,6 @@ tests:
             configMapRef:
               name: RELEASE-NAME
 
-  # =============================================================================
-  # Deployment Volume Mount Tests
-  # =============================================================================
   - it: should add volume mount when mountPath is specified
     set:
       configMap:
@@ -280,9 +265,6 @@ tests:
         isNull:
           path: spec.template.spec.volumes
 
-  # =============================================================================
-  # Both envFrom and Volume Mount Tests
-  # =============================================================================
   - it: should support both envFrom and volume mount simultaneously
     set:
       configMap:
@@ -307,9 +289,6 @@ tests:
             mountPath: "/etc/config"
             readOnly: true
 
-  # =============================================================================
-  # Checksum Annotation Tests
-  # =============================================================================
   - it: should add checksum annotation when configmap is enabled
     set:
       configMap:
@@ -327,9 +306,6 @@ tests:
         notExists:
           path: metadata.annotations["checksum/configmap"]
 
-  # =============================================================================
-  # Existing Volumes Preserved Tests
-  # =============================================================================
   - it: should preserve existing volumes alongside configmap volume
     set:
       configMap:

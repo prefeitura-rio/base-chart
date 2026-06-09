@@ -39,9 +39,8 @@ image:
 
 # Secrets para autenticação em repositórios privados de imagens
 # Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
-imagePullSecrets:
-  # Nome do secret que contém as credenciais do registry
-  - name: ghcr-credentials
+# Exemplo: - name: ghcr-credentials
+imagePullSecrets: []
 
 # Sobrescrita do nome do chart (afeta labels e seletores)
 nameOverride: ""
@@ -386,6 +385,60 @@ configMap:
   # Permissões dos arquivos quando montado como volume (padrão: 0644)
   defaultMode: 0644
 
+# Ingress - exposição HTTP/HTTPS via qualquer ingress controller
+# Mais informações: https://kubernetes.io/docs/concepts/services-networking/ingress/
+#
+# Use quando não estiver usando Istio, ou quando precisar de suporte
+# a controllers como nginx, traefik, aws-alb, etc.
+#
+# Exemplo mínimo:
+#   ingress:
+#     enabled: true
+#     ingressClassName: nginx
+#     hosts:
+#       - host: api.example.com
+#         paths:
+#           - path: /
+#             pathType: Prefix
+ingress:
+  enabled: false
+
+  # Nome da IngressClass (ex: nginx, traefik, alb)
+  ingressClassName: ""
+
+  # Anotações adicionais para o Ingress
+  annotations: {}
+  # Exemplos:
+  # annotations:
+  #   nginx.ingress.kubernetes.io/rewrite-target: /
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+
+  # Regras de roteamento (hosts e paths)
+  hosts: []
+  # Exemplo:
+  # hosts:
+  #   - host: api.example.com
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+  #   - host: admin.example.com
+  #     paths:
+  #       - path: /admin
+  #         pathType: Prefix
+  #       - path: /api
+  #         pathType: Exact
+
+  # Configuração TLS
+  tls: []
+  # Exemplo:
+  # tls:
+  #   - secretName: api-tls-secret
+  #     hosts:
+  #       - api.example.com
+  #   - secretName: admin-tls-secret
+  #     hosts:
+  #       - admin.example.com
+
 # Configuração completa do Istio para service mesh
 # Mais informações: https://istio.io/latest/docs/
 #
@@ -620,12 +673,14 @@ podDisruptionBudget:
   # Habilita PodDisruptionBudget (habilitado por padrão)
   enabled: true
 
-  # Número mínimo de pods que devem estar disponíveis
-  # Use um dos dois: minAvailable OU maxUnavailable (não ambos)
-  minAvailable: 1
+  # Número máximo de pods que podem estar indisponíveis durante disrupções voluntárias
+  # Use um dos dois: maxUnavailable OU minAvailable (não ambos)
+  # maxUnavailable: 1 é seguro com qualquer replicaCount (inclusive 1)
+  # minAvailable: 1 com replicaCount: 1 bloqueia node drains!
+  maxUnavailable: 1
 
-  # Número máximo de pods que podem estar indisponíveis (alternativa ao minAvailable)
-  # maxUnavailable: 1
+  # Alternativa: número mínimo de pods disponíveis
+  # minAvailable: 1
 
   # Também aceita porcentagens:
   # minAvailable: "50%"

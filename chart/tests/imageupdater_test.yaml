@@ -2,9 +2,6 @@ suite: test imageupdater
 templates:
   - imageupdater.yaml
 tests:
-  # =============================================================================
-  # Basic Rendering Tests
-  # =============================================================================
   - it: should not render ImageUpdater when disabled (default)
     asserts:
       - hasDocuments:
@@ -19,9 +16,6 @@ tests:
       - isAPIVersion:
           of: argocd-image-updater.argoproj.io/v1alpha1
 
-  # =============================================================================
-  # Smart Defaults Tests
-  # =============================================================================
   - it: should use default namespace "argo-cd" when not specified
     set:
       argoImageUpdater.enabled: true
@@ -81,9 +75,6 @@ tests:
           path: spec.applicationRefs[0].namespace
           value: custom-namespace
 
-  # =============================================================================
-  # Auto-generated Image Tests (when images list is empty)
-  # =============================================================================
   - it: should auto-generate image from deployment values when images list is empty
     set:
       argoImageUpdater.enabled: true
@@ -165,9 +156,6 @@ tests:
           path: spec.applicationRefs[0].images[0].imageName
           pattern: "ghcr.io/myorg/myapp:.*"
 
-  # =============================================================================
-  # Explicit Images List Tests
-  # =============================================================================
   - it: should use explicit images list when provided
     set:
       argoImageUpdater.enabled: true
@@ -225,9 +213,6 @@ tests:
           path: spec.applicationRefs[0].images[0].registrySecret
           value: registry-credentials
 
-  # =============================================================================
-  # Labels and Annotations Tests
-  # =============================================================================
   - it: should include standard labels
     set:
       argoImageUpdater.enabled: true
@@ -261,9 +246,6 @@ tests:
           path: metadata.labels["custom-label"]
           value: custom-value
 
-  # =============================================================================
-  # Metadata Name Tests
-  # =============================================================================
   - it: should use fullname helper for metadata name
     set:
       argoImageUpdater.enabled: true
@@ -281,9 +263,6 @@ tests:
           path: metadata.name
           value: my-app
 
-  # =============================================================================
-  # Integration Tests - Real-world scenarios
-  # =============================================================================
   - it: "scenario: minimal config - just enable argoImageUpdater"
     release:
       name: atlas-api
@@ -331,9 +310,6 @@ tests:
           path: spec.applicationRefs[0].images[0].commonUpdateSettings.semverConstraint
           value: "^2.0.0"
 
-  # =============================================================================
-  # Registry Secret Tests (auto-derived from imagePullSecrets)
-  # =============================================================================
   - it: should auto-derive registrySecret from imagePullSecrets
     set:
       argoImageUpdater.enabled: true
@@ -359,15 +335,16 @@ tests:
           path: spec.applicationRefs[0].images[0].registrySecret
           value: first-secret
 
-  - it: should not set registrySecret when imagePullSecrets is empty
+  - it: should fall back to ghcr-credentials when imagePullSecrets is empty
     set:
       argoImageUpdater.enabled: true
       imagePullSecrets: []
       image.repository: ghcr.io/myorg/myapp
       image.tag: latest
     asserts:
-      - notExists:
+      - equal:
           path: spec.applicationRefs[0].images[0].registrySecret
+          value: ghcr-credentials
 
   - it: should allow explicit registrySecret override
     set:

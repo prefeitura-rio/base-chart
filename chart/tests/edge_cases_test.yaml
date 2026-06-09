@@ -1,8 +1,5 @@
 suite: test edge cases
 tests:
-  # =============================================================================
-  # Empty/Nil Value Handling
-  # =============================================================================
   - it: deployment should handle empty healthCheck.path gracefully
     templates:
       - deployment.yaml
@@ -75,9 +72,6 @@ tests:
           path: spec.applicationRefs[0].images[0].imageName
           value: "myrepo/myimage:v1.0.0"
 
-  # =============================================================================
-  # Disabled Features Should Not Render
-  # =============================================================================
   - it: should not render virtualservice when istio disabled
     templates:
       - virtualservice.yaml
@@ -158,9 +152,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  # =============================================================================
-  # Pod Anti-Affinity Edge Cases
-  # =============================================================================
   - it: should not render affinity when podAntiAffinity disabled
     templates:
       - deployment.yaml
@@ -184,9 +175,6 @@ tests:
       - notExists:
           path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
 
-  # =============================================================================
-  # Autoscaling Mode Switching
-  # =============================================================================
   - it: should render HPA when KEDA is disabled
     templates:
       - hpa.yaml
@@ -225,9 +213,6 @@ tests:
       - hasDocuments:
           count: 0
 
-  # =============================================================================
-  # Name Override Edge Cases
-  # =============================================================================
   - it: fullnameOverride should override all resource names
     templates:
       - deployment.yaml
@@ -254,9 +239,6 @@ tests:
           path: metadata.name
           pattern: "^.{1,63}$"
 
-  # =============================================================================
-  # Security Context Combinations
-  # =============================================================================
   - it: should merge custom podSecurityContext with defaults
     templates:
       - deployment.yaml
@@ -287,9 +269,6 @@ tests:
           path: spec.template.spec.containers[0].securityContext.runAsUser
           value: 1000
 
-  # =============================================================================
-  # Resource Limits Edge Cases
-  # =============================================================================
   - it: should handle empty resources gracefully
     templates:
       - deployment.yaml
@@ -320,9 +299,6 @@ tests:
           path: spec.template.spec.containers[0].resources.requests.memory
           value: 128Mi
 
-  # =============================================================================
-  # VirtualService HTTP Routes Edge Cases
-  # =============================================================================
   - it: virtualservice should auto-add route when http has no routes
     templates:
       - virtualservice.yaml

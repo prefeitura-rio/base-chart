@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+
+env:
+  CHART_DIR: chart
+  HELM_UNITTEST_VERSION: "1.1.0"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install helm-unittest
+        run: |
+          mkdir -p "$(helm env HELM_PLUGINS)/helm-unittest"
+          curl -sSL "https://github.com/helm-unittest/helm-unittest/releases/download/v${{ env.HELM_UNITTEST_VERSION }}/helm-unittest-linux-amd64-${{ env.HELM_UNITTEST_VERSION }}.tgz" \
+            | tar -xz -C "$(helm env HELM_PLUGINS)/helm-unittest"
+
+      - name: Lint
+        run: helm lint ${{ env.CHART_DIR }}
+
+      - name: Test
+        run: helm unittest ${{ env.CHART_DIR }}

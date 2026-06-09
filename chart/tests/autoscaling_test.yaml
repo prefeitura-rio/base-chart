@@ -3,9 +3,6 @@ templates:
   - hpa.yaml
   - scaledobject.yaml
 tests:
-  # =============================================================================
-  # HPA Tests (when keda.enabled=false)
-  # =============================================================================
   - it: HPA should not render when autoscaling is disabled
     template: hpa.yaml
     set:
@@ -84,9 +81,6 @@ tests:
                 type: Utilization
                 averageUtilization: 85
 
-  # =============================================================================
-  # KEDA ScaledObject Tests (default when autoscaling enabled)
-  # =============================================================================
   - it: KEDA should render by default when autoscaling enabled
     template: scaledobject.yaml
     set:
@@ -217,9 +211,6 @@ tests:
           path: spec.triggers[0].metadata.queueName
           value: tasks
 
-  # =============================================================================
-  # Prometheus Smart Defaults Tests
-  # =============================================================================
   - it: KEDA should use default serverAddress when not provided
     template: scaledobject.yaml
     set:
@@ -255,9 +246,6 @@ tests:
           path: spec.triggers[0].metadata.serverAddress
           value: http://custom-prometheus:9090
 
-  # =============================================================================
-  # Sync Wave Tests
-  # =============================================================================
   - it: HPA should have sync-wave 2
     template: hpa.yaml
     set:

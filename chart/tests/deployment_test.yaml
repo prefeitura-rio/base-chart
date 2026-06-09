@@ -5,6 +5,7 @@ tests:
   - it: should render deployment with default values
     set:
       autoscaling.enabled: false
+      image.tag: "1.25"
     asserts:
       - isKind:
           of: Deployment
@@ -190,9 +191,6 @@ tests:
           path: spec.template.spec.serviceAccountName
           value: default
 
-  # =============================================================================
-  # Health Check Tests (simplified healthCheck.path)
-  # =============================================================================
   - it: should use healthCheck.path for both probes when set
     set:
       healthCheck:
@@ -262,9 +260,6 @@ tests:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
           value: /
 
-  # =============================================================================
-  # Security Context Tests (production defaults)
-  # =============================================================================
   - it: should have production security defaults for pod
     asserts:
       - equal:
@@ -283,9 +278,6 @@ tests:
           path: spec.template.spec.containers[0].securityContext.capabilities.drop
           content: ALL
 
-  # =============================================================================
-  # Pod Anti-Affinity Tests
-  # =============================================================================
   - it: should have soft pod anti-affinity by default
     asserts:
       - exists:
@@ -323,3 +315,25 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.affinity
+  - it: should use ghcr-credentials when imagePullSecrets is empty
+    set:
+      imagePullSecrets: []
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: ghcr-credentials
+
+  - it: should use provided imagePullSecrets when set
+    set:
+      imagePullSecrets:
+        - name: my-registry-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: my-registry-secret
+      - notContains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: ghcr-credentials

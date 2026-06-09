@@ -203,9 +203,6 @@ tests:
           path: spec.http[0].timeout
           value: "60s"
 
-  # =============================================================================
-  # Auto-derived destination tests
-  # =============================================================================
   - it: should auto-derive destination host when not specified in http routes
     release:
       namespace: myns
@@ -273,9 +270,28 @@ tests:
           path: spec.http[0].route[0].destination.port.number
           value: 80
 
-  # =============================================================================
-  # Default Gateway Tests
-  # =============================================================================
+  - it: should use FQDN for default route destination host
+    release:
+      namespace: test-ns
+    set:
+      istio.enabled: true
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: RELEASE-NAME.test-ns.svc.cluster.local
+
+  - it: should use FQDN for pathBasedRouting primary route
+    release:
+      namespace: test-ns
+    set:
+      istio.enabled: true
+      istio.virtualService.pathBasedRouting.enabled: true
+      istio.virtualService.pathBasedRouting.servicePath: api
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: RELEASE-NAME.test-ns.svc.cluster.local
+
   - it: should use default gateway when not specified
     set:
       istio.enabled: true

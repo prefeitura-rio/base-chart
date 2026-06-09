@@ -48,6 +48,17 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Resolve imagePullSecrets - falls back to ghcr-credentials if none provided
+*/}}
+{{- define "base-chart.imagePullSecrets" -}}
+{{- if .Values.imagePullSecrets }}
+{{- toYaml .Values.imagePullSecrets }}
+{{- else }}
+- name: ghcr-credentials
+{{- end }}
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "base-chart.serviceAccountName" -}}

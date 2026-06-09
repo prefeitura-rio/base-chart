@@ -44,10 +44,8 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         spec:
-          {{- with $.Values.imagePullSecrets }}
           imagePullSecrets:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- include "base-chart.imagePullSecrets" $ | nindent 12 }}
           serviceAccountName: {{ include "base-chart.serviceAccountName" $ }}
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           {{- with $job.podSecurityContext | default $.Values.podSecurityContext }}
@@ -74,11 +72,17 @@ spec:
               args:
                 {{- toYaml . | nindent 16 }}
               {{- end }}
-              {{- if or $job.envFrom $.Values.envFrom $.Values.infisicalSecret.enabled }}
+              {{- $mountAsEnv := ternary $.Values.configMap.mountAsEnv true (hasKey $.Values.configMap "mountAsEnv") }}
+              {{- $configMapEnv := and $.Values.configMap.enabled $mountAsEnv }}
+              {{- if or $job.envFrom $.Values.envFrom $.Values.infisicalSecret.enabled $configMapEnv }}
               envFrom:
                 {{- if $.Values.infisicalSecret.enabled }}
                 - secretRef:
                     name: {{ $.Values.infisicalSecret.secretName }}
+                {{- end }}
+                {{- if $configMapEnv }}
+                - configMapRef:
+                    name: {{ include "base-chart.fullname" $ }}
                 {{- end }}
                 {{- with $job.envFrom }}
                 {{- toYaml . | nindent 16 }}

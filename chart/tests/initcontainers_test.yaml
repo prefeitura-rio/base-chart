@@ -2,9 +2,6 @@ suite: test init containers
 templates:
   - deployment.yaml
 tests:
-  # =============================================================================
-  # Basic Init Container Tests
-  # =============================================================================
   - it: should not render initContainers when empty
     asserts:
       - notExists:
@@ -34,9 +31,6 @@ tests:
           path: spec.template.spec.initContainers
           count: 2
 
-  # =============================================================================
-  # Image Inheritance Tests
-  # =============================================================================
   - it: should inherit image from deployment when not specified
     set:
       image:
@@ -89,9 +83,6 @@ tests:
           path: spec.template.spec.initContainers[0].imagePullPolicy
           value: IfNotPresent
 
-  # =============================================================================
-  # Command and Args Tests
-  # =============================================================================
   - it: should render command correctly
     set:
       initContainers:
@@ -113,9 +104,23 @@ tests:
           path: spec.template.spec.initContainers[0].args
           value: ["--flag", "value"]
 
-  # =============================================================================
-  # EnvFrom Inheritance Tests
-  # =============================================================================
+  - it: should render custom envFrom when infisicalSecret is disabled
+    set:
+      infisicalSecret:
+        enabled: false
+      initContainers:
+        - name: init
+          command: ["echo"]
+          envFrom:
+            - configMapRef:
+                name: init-config
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].envFrom
+          content:
+            configMapRef:
+              name: init-config
+
   - it: should inherit Infisical secret when enabled
     set:
       infisicalSecret:
@@ -171,9 +176,6 @@ tests:
             name: DB_HOST
             value: postgres
 
-  # =============================================================================
-  # VolumeMount Inheritance Tests
-  # =============================================================================
   - it: should inherit volumeMounts from deployment when not specified
     set:
       volumeMounts:
@@ -212,9 +214,6 @@ tests:
             name: data
             mountPath: /data
 
-  # =============================================================================
-  # Resources Tests
-  # =============================================================================
   - it: should render resources when specified
     set:
       initContainers:
@@ -235,9 +234,6 @@ tests:
           path: spec.template.spec.initContainers[0].resources.requests.memory
           value: 64Mi
 
-  # =============================================================================
-  # Security Context Tests
-  # =============================================================================
   - it: should render securityContext when specified
     set:
       initContainers:
@@ -254,9 +250,6 @@ tests:
           path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
           value: true
 
-  # =============================================================================
-  # Integration Scenarios
-  # =============================================================================
   - it: "scenario: database migration init container"
     set:
       image:
