@@ -88,6 +88,50 @@ podLabels: {}
 
 # Pod Anti-Affinity - distribui réplicas em diferentes nodes para HA
 # Mais informações: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+# Seletor de nós para agendamento em nodes específicos
+# Mais informações: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+# Tempo de espera antes de forçar o encerramento do pod (segundos)
+# Importante para shutdown gracioso, especialmente com Istio
+# Recomendado: valor maior que o timeout do probe de liveness
+# Mais informações: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination
+terminationGracePeriodSeconds: null
+
+# Hooks de ciclo de vida do container
+# Mais informações: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
+lifecycle: {}
+# Exemplo com Istio (aguarda sidecar drenar conexões):
+# lifecycle:
+#   preStop:
+#     exec:
+#       command: ["/bin/sh", "-c", "sleep 5"]
+
+nodeSelector: {}
+# Exemplo:
+# nodeSelector:
+#   disktype: ssd
+#   cloud.google.com/gke-nodepool: my-pool
+
+# Tolerâncias para agendamento em nodes com taints
+# Mais informações: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+tolerations: []
+
+# Distribuição de pods entre zonas/nodes (alternativa moderna ao podAntiAffinity)
+# Mais informações: https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/
+topologySpreadConstraints: []
+# Exemplo - distribui entre zonas:
+# topologySpreadConstraints:
+#   - maxSkew: 1
+#     topologyKey: topology.kubernetes.io/zone
+#     whenUnsatisfiable: DoNotSchedule
+#     labelSelector:
+#       matchLabels:
+#         app.kubernetes.io/name: my-app
+# Exemplo:
+# tolerations:
+#   - key: "spot"
+#     operator: "Exists"
+#     effect: "NoSchedule"
+
 podAntiAffinity:
   # Habilita anti-affinity (habilitado por padrão para HA)
   enabled: true
@@ -175,6 +219,11 @@ healthCheck:
 livenessProbe: {}
 
 readinessProbe: {}
+
+# Startup probe - use para apps com inicialização lenta (JVM, migrações, etc.)
+# Quando healthCheck.path estiver definido, é preenchido automaticamente
+# Mais informações: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+startupProbe: {}
 
 # Exemplos avançados:
 # 1. Paths diferentes para cada probe:

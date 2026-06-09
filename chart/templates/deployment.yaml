@@ -52,7 +52,7 @@ spec:
       initContainers:
         {{- range .Values.initContainers }}
         - name: {{ .name }}
-          image: {{ .image | default (printf "%s:%s" $.Values.image.repository ($.Values.image.tag | default "latest")) | quote }}
+          image: {{ .image | default (include "base-chart.image" $) | quote }}
           imagePullPolicy: {{ .imagePullPolicy | default $.Values.image.pullPolicy }}
           {{- with .command }}
           command:
@@ -110,7 +110,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
+          image: {{ include "base-chart.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- $mountAsEnv := ternary .Values.configMap.mountAsEnv true (hasKey .Values.configMap "mountAsEnv") }}
           {{- $configMapEnv := and .Values.configMap.enabled $mountAsEnv }}
@@ -164,6 +164,10 @@ spec:
             httpGet:
               path: {{ $healthPath }}
               port: {{ $healthPort }}
+          startupProbe:
+            httpGet:
+              path: {{ $healthPath }}
+              port: {{ $healthPort }}
           {{- else }}
           {{- if .Values.livenessProbe }}
           livenessProbe:
@@ -173,6 +177,14 @@ spec:
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           {{- end }}
+          {{- if .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.resources }}
           resources:
@@ -202,6 +214,21 @@ spec:
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+      {{- end }}
+      {{- if .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.podAntiAffinity.enabled }}
       affinity:

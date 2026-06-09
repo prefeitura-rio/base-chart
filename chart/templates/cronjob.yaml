@@ -47,6 +47,17 @@ spec:
           imagePullSecrets:
             {{- include "base-chart.imagePullSecrets" $ | nindent 12 }}
           serviceAccountName: {{ include "base-chart.serviceAccountName" $ }}
+          {{- if $.Values.terminationGracePeriodSeconds }}
+          terminationGracePeriodSeconds: {{ $.Values.terminationGracePeriodSeconds }}
+          {{- end }}
+          {{- with $.Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $.Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           {{- with $job.podSecurityContext | default $.Values.podSecurityContext }}
           securityContext:
@@ -54,15 +65,15 @@ spec:
           {{- end }}
           containers:
             - name: {{ $name }}
-              {{- $imageRepo := $.Values.image.repository }}
-              {{- $imageTag := $.Values.image.tag | default $.Chart.AppVersion }}
+              {{- $image := include "base-chart.image" $ }}
               {{- $imagePullPolicy := $.Values.image.pullPolicy }}
               {{- if $job.image }}
-              {{- $imageRepo = $job.image.repository | default $imageRepo }}
-              {{- $imageTag = $job.image.tag | default $imageTag }}
+              {{- $repo := $job.image.repository | default $.Values.image.repository }}
+              {{- $tag := $job.image.tag | default $.Values.image.tag | default "latest" }}
+              {{- $image = printf "%s:%s" $repo $tag }}
               {{- $imagePullPolicy = $job.image.pullPolicy | default $imagePullPolicy }}
               {{- end }}
-              image: "{{ $imageRepo }}:{{ $imageTag }}"
+              image: {{ $image | quote }}
               imagePullPolicy: {{ $imagePullPolicy }}
               {{- with $job.command }}
               command:

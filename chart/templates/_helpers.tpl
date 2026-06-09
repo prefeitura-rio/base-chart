@@ -48,6 +48,13 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Resolve the full image reference (repository:tag)
+*/}}
+{{- define "base-chart.image" -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default "latest") }}
+{{- end }}
+
+{{/*
 Resolve imagePullSecrets - falls back to ghcr-credentials if none provided
 */}}
 {{- define "base-chart.imagePullSecrets" -}}
