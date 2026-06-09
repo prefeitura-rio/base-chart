@@ -1,0 +1,33 @@
+{{- if and .Values.autoscaling.enabled .Values.autoscaling.keda.enabled .Values.autoscaling.keda.triggerAuthentication -}}
+{{- $fullName := include "base-chart.fullname" . -}}
+{{- $triggerAuth := .Values.autoscaling.keda.triggerAuthentication -}}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ $triggerAuth.name | default (printf "%s-trigger-auth" $fullName) }}
+  labels:
+    {{- include "base-chart.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  {{- with $triggerAuth.secretTargetRef }}
+  secretTargetRef:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $triggerAuth.env }}
+  env:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $triggerAuth.podIdentity }}
+  podIdentity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $triggerAuth.hashiCorpVault }}
+  hashiCorpVault:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $triggerAuth.azureKeyVault }}
+  azureKeyVault:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

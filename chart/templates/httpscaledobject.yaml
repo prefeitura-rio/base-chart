@@ -1,0 +1,22 @@
+{{- $httpMode := and .Values.autoscaling.enabled .Values.autoscaling.keda.enabled (not .Values.istio.enabled) (not .Values.autoscaling.keda.triggers) -}}
+{{- if $httpMode -}}
+{{- $fullName := include "base-chart.fullname" . -}}
+{{- $minReplicas := .Values.autoscaling.minReplicas | default 1 -}}
+{{- $maxReplicas := .Values.autoscaling.maxReplicas | default 10 -}}
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "base-chart.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  scaleTargetRef:
+    name: {{ $fullName }}
+    port: {{ .Values.service.port }}
+  replicas:
+    min: {{ $minReplicas }}
+    max: {{ $maxReplicas }}
+  targetPendingRequests: {{ .Values.autoscaling.keda.http.targetPendingRequests | default 100 }}
+{{- end }}

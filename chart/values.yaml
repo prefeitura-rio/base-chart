@@ -22,6 +22,10 @@ global: {}
 # Mais informações: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
+# Número de ReplicaSets antigos a manter para rollback
+# Mais informações: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#revision-history-limit
+revisionHistoryLimit: null
+
 # Configuração da imagem do container
 # Mais informações: https://kubernetes.io/docs/concepts/containers/images/
 image:
@@ -207,12 +211,19 @@ resources: {}
 # O path é usado automaticamente para livenessProbe e readinessProbe.
 # A porta é derivada de service.containerPort.
 healthCheck:
-  # Path para health check (usado por liveness e readiness)
-  # Se definido, sobrescreve livenessProbe e readinessProbe
+  # Path para health check (usado por liveness, readiness e startup)
+  # Se definido, sobrescreve livenessProbe, readinessProbe e startupProbe
   path: ""
 
   # Porta opcional (padrão: service.containerPort)
   # port: 8080
+
+  # Campos de timing aplicados a todos os probes quando path estiver definido
+  initialDelaySeconds: null
+  periodSeconds: null
+  timeoutSeconds: null
+  failureThreshold: null
+  successThreshold: null
 
 # Probes avançados - use se precisar de configurações diferentes para cada probe
 # Se healthCheck.path estiver definido, estas configurações são ignoradas
@@ -283,6 +294,48 @@ autoscaling:
 
     # Tempo de espera após última métrica antes de scale down (segundos)
     cooldownPeriod: 300
+
+    # HTTP scaling (usado automaticamente quando istio.enabled=false e triggers=[]
+    # Requer KEDA HTTP Add-on instalado no cluster
+    # Mais informações: https://github.com/kedacore/http-add-on
+    http:
+      # Número de requisições pendentes alvo para escalonamento
+      targetPendingRequests: 100
+
+    # TriggerAuthentication - credenciais para triggers autenticados
+    # Mais informações: https://keda.sh/docs/concepts/authentication/
+    triggerAuthentication: {}
+    # Exemplo com secret:
+    # triggerAuthentication:
+    #   name: my-trigger-auth  # opcional, default: <fullname>-trigger-auth
+    #   secretTargetRef:
+    #     - parameter: password
+    #       name: my-secret
+    #       key: RABBITMQ_PASSWORD
+
+    # Comportamento quando métricas estão indisponíveis
+    # Mais informações: https://keda.sh/docs/concepts/scaling-deployments/#fallback
+    fallback: {}
+    # Exemplo:
+    # fallback:
+    #   failureThreshold: 3
+    #   replicas: 3
+
+    # Configurações avançadas do HPA (scale up/down behavior)
+    # Mais informações: https://keda.sh/docs/concepts/scaling-deployments/#advanced
+    advanced: {}
+    # Exemplo:
+    # advanced:
+    #   horizontalPodAutoscalerConfig:
+    #     behavior:
+    #       scaleUp:
+    #         stabilizationWindowSeconds: 0
+    #         policies:
+    #           - type: Percent
+    #             value: 100
+    #             periodSeconds: 10
+    #       scaleDown:
+    #         stabilizationWindowSeconds: 300
 
     # Triggers para autoscaling
     # Smart defaults para Prometheus:

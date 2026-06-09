@@ -454,3 +454,49 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.topologySpreadConstraints
+
+  - it: should render revisionHistoryLimit when set
+    set:
+      revisionHistoryLimit: 3
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 3
+
+  - it: should not render revisionHistoryLimit when not set
+    asserts:
+      - notExists:
+          path: spec.revisionHistoryLimit
+
+  - it: should apply timing fields to all probes when healthCheck.path is set
+    set:
+      healthCheck:
+        path: /health
+        initialDelaySeconds: 10
+        periodSeconds: 30
+        timeoutSeconds: 5
+        failureThreshold: 6
+        successThreshold: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 6
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.timeoutSeconds
+          value: 5
+
+  - it: should not add timing fields when not set with healthCheck.path
+    set:
+      healthCheck:
+        path: /health
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds

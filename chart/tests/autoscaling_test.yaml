@@ -264,3 +264,73 @@ tests:
       - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "2"
+
+  - it: KEDA should pass activationThreshold for prometheus trigger
+    template: scaledobject.yaml
+    set:
+      autoscaling.enabled: true
+      autoscaling.keda.triggers:
+        - type: prometheus
+          metadata:
+            threshold: "75"
+            activationThreshold: "25"
+    asserts:
+      - equal:
+          path: spec.triggers[0].metadata.activationThreshold
+          value: "25"
+
+  - it: KEDA should not render activationThreshold when not set
+    template: scaledobject.yaml
+    set:
+      autoscaling.enabled: true
+      autoscaling.keda.triggers:
+        - type: prometheus
+          metadata:
+            threshold: "100"
+    asserts:
+      - notExists:
+          path: spec.triggers[0].metadata.activationThreshold
+
+  - it: KEDA should render fallback when set
+    template: scaledobject.yaml
+    set:
+      autoscaling.enabled: true
+      autoscaling.keda.fallback.failureThreshold: 3
+      autoscaling.keda.fallback.replicas: 3
+    asserts:
+      - equal:
+          path: spec.fallback.failureThreshold
+          value: 3
+      - equal:
+          path: spec.fallback.replicas
+          value: 3
+
+  - it: KEDA should not render fallback when not set
+    template: scaledobject.yaml
+    set:
+      autoscaling.enabled: true
+    asserts:
+      - notExists:
+          path: spec.fallback
+
+  - it: KEDA should render advanced when set
+    template: scaledobject.yaml
+    set:
+      autoscaling.enabled: true
+      autoscaling.keda.advanced:
+        horizontalPodAutoscalerConfig:
+          behavior:
+            scaleDown:
+              stabilizationWindowSeconds: 300
+    asserts:
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
+
+  - it: KEDA should not render advanced when not set
+    template: scaledobject.yaml
+    set:
+      autoscaling.enabled: true
+    asserts:
+      - notExists:
+          path: spec.advanced
