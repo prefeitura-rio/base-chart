@@ -238,3 +238,58 @@ tests:
     asserts:
       - notExists:
           path: spec.tls
+
+  - it: should render defaultBackend when set
+    set:
+      ingress.enabled: true
+      ingress.defaultBackend:
+        service:
+          name: my-service
+          port: 80
+    asserts:
+      - equal:
+          path: spec.defaultBackend.service.name
+          value: my-service
+      - equal:
+          path: spec.defaultBackend.service.port
+          value: 80
+
+  - it: should render without rules when only defaultBackend is set
+    set:
+      ingress.enabled: true
+      ingress.hosts: []
+      ingress.defaultBackend:
+        service:
+          name: my-service
+          port: 80
+    asserts:
+      - notExists:
+          path: spec.rules
+
+  - it: should not render defaultBackend when not set
+    set:
+      ingress.enabled: true
+      ingress.hosts:
+        - host: api.example.com
+          paths:
+            - path: /
+    asserts:
+      - notExists:
+          path: spec.defaultBackend
+
+  - it: should render both defaultBackend and rules when both are set
+    set:
+      ingress.enabled: true
+      ingress.defaultBackend:
+        service:
+          name: fallback-svc
+          port: 80
+      ingress.hosts:
+        - host: api.example.com
+          paths:
+            - path: /
+    asserts:
+      - exists:
+          path: spec.defaultBackend
+      - exists:
+          path: spec.rules

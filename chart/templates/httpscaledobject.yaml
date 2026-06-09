@@ -3,6 +3,8 @@
 {{- $fullName := include "base-chart.fullname" . -}}
 {{- $minReplicas := .Values.autoscaling.minReplicas | default 1 -}}
 {{- $maxReplicas := .Values.autoscaling.maxReplicas | default 10 -}}
+{{- $http := .Values.autoscaling.keda.http -}}
+{{- $ref := $http.scaleTargetRef | default dict -}}
 apiVersion: http.keda.sh/v1alpha1
 kind: HTTPScaledObject
 metadata:
@@ -12,11 +14,30 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
+  {{- with $http.hosts }}
+  hosts:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $http.pathPrefixes }}
+  pathPrefixes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   scaleTargetRef:
+    apiVersion: {{ $ref.apiVersion | default "apps/v1" }}
+    kind: {{ $ref.kind | default "Deployment" }}
     name: {{ $fullName }}
-    port: {{ .Values.service.port }}
+    service: {{ $ref.service | default $fullName }}
+    port: {{ $ref.port | default .Values.service.port }}
   replicas:
     min: {{ $minReplicas }}
     max: {{ $maxReplicas }}
-  targetPendingRequests: {{ .Values.autoscaling.keda.http.targetPendingRequests | default 100 }}
+  {{- if $http.scaledownPeriod }}
+  scaledownPeriod: {{ $http.scaledownPeriod }}
+  {{- end }}
+  {{- if $http.scalingMetric }}
+  scalingMetric:
+    {{- toYaml $http.scalingMetric | nindent 4 }}
+  {{- else }}
+  targetPendingRequests: {{ $http.targetPendingRequests | default 100 }}
+  {{- end }}
 {{- end }}

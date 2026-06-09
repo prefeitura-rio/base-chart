@@ -126,3 +126,38 @@ tests:
       - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "1"
+
+  - it: should render additional ports when service.ports is set
+    set:
+      service.ports:
+        - name: metrics
+          port: 9090
+          targetPort: 9090
+          protocol: TCP
+        - name: amqp
+          port: 5672
+          targetPort: 5672
+    asserts:
+      - equal:
+          path: spec.ports[1].name
+          value: metrics
+      - equal:
+          path: spec.ports[1].port
+          value: 9090
+      - equal:
+          path: spec.ports[2].name
+          value: amqp
+      - equal:
+          path: spec.ports[2].port
+          value: 5672
+
+  - it: should default protocol to TCP for additional ports
+    set:
+      service.ports:
+        - name: metrics
+          port: 9090
+          targetPort: 9090
+    asserts:
+      - equal:
+          path: spec.ports[1].protocol
+          value: TCP

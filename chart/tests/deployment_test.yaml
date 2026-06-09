@@ -500,3 +500,25 @@ tests:
           path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
       - notExists:
           path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+
+  - it: should emit containerPort entries for additional service.ports
+    set:
+      service.ports:
+        - name: metrics
+          port: 9090
+          targetPort: 9090
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: metrics
+            containerPort: 9090
+            protocol: TCP
+
+  - it: should only have primary containerPort when service.ports is empty
+    set:
+      service.ports: []
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers[0].ports
+          count: 1

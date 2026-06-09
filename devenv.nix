@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 {
-  packages = with pkgs; [ kubernetes-helm ];
+  languages.helm.enable = true;
 
   tasks = {
     "helm:lint" = {

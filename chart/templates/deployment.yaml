@@ -155,6 +155,11 @@ spec:
             - name: http
               containerPort: {{ .Values.service.containerPort }}
               protocol: TCP
+            {{- range .Values.service.ports }}
+            - name: {{ .name }}
+              containerPort: {{ .targetPort }}
+              protocol: {{ .protocol | default "TCP" }}
+            {{- end }}
           {{- /* Health probes - simplified healthCheck.path or advanced livenessProbe/readinessProbe */ -}}
           {{- $healthPath := .Values.healthCheck.path -}}
           {{- $healthPort := .Values.healthCheck.port | default .Values.service.containerPort -}}

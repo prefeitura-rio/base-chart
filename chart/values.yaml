@@ -189,6 +189,19 @@ service:
   # Esta porta deve corresponder à porta que sua aplicação usa internamente
   containerPort: 8080
 
+  # Portas adicionais expostas pelo Service (além da porta principal)
+  # Exemplo: métricas, AMQP, gRPC, etc.
+  ports: []
+  # Exemplo:
+  # ports:
+  #   - name: metrics
+  #     port: 9090
+  #     targetPort: 9090
+  #     protocol: TCP
+  #   - name: amqp
+  #     port: 5672
+  #     targetPort: 5672
+
 # Limites e requests de recursos para o container
 # É recomendado definir estes valores para ambientes de produção
 resources: {}
@@ -299,8 +312,38 @@ autoscaling:
     # Requer KEDA HTTP Add-on instalado no cluster
     # Mais informações: https://github.com/kedacore/http-add-on
     http:
-      # Número de requisições pendentes alvo para escalonamento
+      # Hosts interceptados pelo KEDA HTTP Add-on
+      hosts: []
+      # Exemplo: ["my-app.example.com"]
+
+      # Prefixos de path interceptados
+      pathPrefixes: []
+      # Exemplo: ["/api", "/health"]
+
+      # Número de requisições pendentes alvo (métrica padrão)
       targetPendingRequests: 100
+
+      # Período de espera antes de scale down (segundos)
+      scaledownPeriod: null
+
+      # Métrica de escalonamento customizada (substitui targetPendingRequests)
+      # Mais informações: https://github.com/kedacore/http-add-on/blob/main/docs/scaling.md
+      scalingMetric: {}
+      # Exemplo:
+      # scalingMetric:
+      #   requestRate:
+      #     granularity: 1s
+      #     targetValue: 100
+      #     window: 1m
+
+      # Sobrescreve campos do scaleTargetRef (opcional)
+      scaleTargetRef: {}
+      # Exemplo:
+      # scaleTargetRef:
+      #   apiVersion: apps/v1
+      #   kind: Deployment
+      #   service: my-svc
+      #   port: 8080
 
     # TriggerAuthentication - credenciais para triggers autenticados
     # Mais informações: https://keda.sh/docs/concepts/authentication/
@@ -507,6 +550,15 @@ ingress:
 
   # Nome da IngressClass (ex: nginx, traefik, alb)
   ingressClassName: ""
+
+  # Backend padrão (catch-all) quando nenhuma regra corresponde
+  # Quando definido sem hosts, funciona como único backend
+  defaultBackend: {}
+  # Exemplo (Tailscale):
+  # defaultBackend:
+  #   service:
+  #     name: my-service
+  #     port: 80
 
   # Anotações adicionais para o Ingress
   annotations: {}
