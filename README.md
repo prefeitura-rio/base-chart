@@ -1,5 +1,8 @@
 # Base Chart
 
+> ⚠️ **This repository is archived.** Development has moved to [prefeitura-rio/charts](https://github.com/prefeitura-rio/charts).
+> Charts are now published to `oci://ghcr.io/prefeitura-rio/charts/base-chart`.
+
 Helm chart for Kubernetes deployments with smart defaults, Istio service mesh, KEDA autoscaling, and Infisical secrets management.
 
 ## Features
